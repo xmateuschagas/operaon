@@ -6,7 +6,7 @@ Fontes lidas: `AGENTS.md`, `docs/rfc-002.md` (citado como "RFC"), `docs/regras-d
 
 Convenção de citação: "RFC L74" significa linha 74 de `docs/rfc-002.md` e "RN L11" significa linha 11 de `docs/regras-de-negocio.md`, sempre na versão anterior a este plano (commit `b9e5f06` da `main`). As atualizações do RFC e das regras feitas junto com este plano deslocam algumas linhas.
 
-As decisões do arquiteto (D1 a D16) estão na seção final. Cada item abaixo indica a decisão que o resolve.
+As decisões do arquiteto (D1 a D28) estão na seção final. Cada item abaixo indica a decisão que o resolve.
 
 ## 1. Contradições, lacunas e ambiguidades
 
@@ -21,11 +21,12 @@ As decisões do arquiteto (D1 a D16) estão na seção final. Cada item abaixo i
 - **Onde:** CHECK `rn01_proximo_passo` (RFC L128 a L132); colunas `data_proximo_passo` e `descricao_proximo_passo` sem default (RFC L119 e L120); RN-07 (RN L11); `necessidade_resumo TEXT NOT NULL` (RFC L115).
 - **Problema:** um lead NOVO sem próximo passo viola o CHECK. O webhook tem de gravar os dois campos no próprio INSERT, e não em um UPDATE posterior. Também não estava definido se o formulário aceita necessidade vazia.
 - **Resolução (D2):** o INSERT do webhook grava `etapa = 'NOVO'`, `data_proximo_passo = agora + 1h` e `descricao_proximo_passo = 'Primeiro contato'` na mesma instrução. Necessidade vazia vira "Não informada" também no formulário.
+- **Lacuna derivada (CSV), resolvida por D18:** o mesmo CHECK vale para as linhas do CSV em etapa aberta. Cada lead importado entra em `NOVO` com `descricao_proximo_passo = 'Primeiro contato'` em agora + 1h. Ver pergunta 5.11.
 
-### 1.3 RN-16 sem mapeamento explícito no RFC (ajuste: RN-16 na sessão 5)
+### 1.3 RN-16 sem mapeamento explícito no RFC (resolvido por D25)
 
 - **Onde:** RN-16 (RN L20); tabela de sessões (RFC L284 a L294) não cita RN-16; o fluxo de compromisso (RFC L247 a L251) também não. Só `docs/prompts/05-agenda-google.md` (item 2) menciona "RN-16 ao excluir ou perder o lead".
-- **Resolução:** RN-16 fica explicitamente na sessão 5 (cancelar compromissos futuros, lembretes `CANCELLED`, evento removido do Google, com `sync_status = PENDING` se o Google falhar). Na sessão 6 a mesma rotina passa a remover os jobs do BullMQ pelo `job_id`. A linha da sessão 5 na seção 9 do RFC passa a citar RN-16.
+- **Resolução (D25):** RN-16 fica explicitamente na sessão 5, cobrindo os três caminhos que geram PERDIDO (interação na sessão 3, revisão na sessão 4 e exclusão do lead) (cancelar compromissos futuros, lembretes `CANCELLED`, evento removido do Google, com `sync_status = PENDING` se o Google falhar). Na sessão 6 a mesma rotina passa a remover os jobs do BullMQ pelo `job_id`. A linha da sessão 5 na seção 9 do RFC passa a citar RN-16.
 
 ### 1.4 Dupla fonte do próximo passo (resolvido por D3)
 
@@ -49,7 +50,7 @@ As decisões do arquiteto (D1 a D16) estão na seção final. Cada item abaixo i
 
 - **Onde:** RN-06 (RN L10: "duplicado bloqueia a criação e sugere o lead existente"); RFC L12 ("importação de CSV com deduplicação por telefone"); `docs/prompts/04-revisao-captura.md` ("não cria duplicados e informa o que foi ignorado").
 - **Problema:** não estava definido se a linha duplicada é rejeitada (e o arquivo inteiro falha), pulada ou usada para atualizar o lead existente.
-- **Resolução (D6):** telefone duplicado faz a linha ser pulada, nunca atualiza o lead existente e aparece no relatório de importação.
+- **Resolução (D6 e D17):** no CSV, telefone duplicado faz a linha ser pulada, nunca atualiza o lead existente e aparece no relatório de importação. No webhook do formulário, telefone duplicado devolve HTTP 200 com o id do lead existente e não altera o lead (D17).
 
 ### 1.8 Associação da resposta "1"/"2" ao compromisso não especificada (resolvido por D7)
 
@@ -111,9 +112,21 @@ As decisões do arquiteto (D1 a D16) estão na seção final. Cada item abaixo i
 ### 1.18 Achados adicionais (fora do escopo das decisões)
 
 - **README desatualizado:** `README.md` diz "RN-01 a RN-12", mas existem RN-01 a RN-16. Fora de `docs/`, não alterado neste PR.
-- **Exclusão feita no Google:** RFC L254 diz que o sync aplica "exclusão", mas não diz se vira `status = CANCELLED` ou `deleted_at`. Proposta: `status = CANCELLED` com lembretes `CANCELLED`, mantendo `deleted_at` para exclusão feita no OperaON. Ver pergunta 12.
-- **Próximo passo de leads do CSV:** o CHECK da RN-01 também vale para linhas do CSV em etapa aberta. D2 cobre o webhook; para o CSV a proposta é aplicar o mesmo padrão ("Primeiro contato" em +1h, etapa NOVO). Ver pergunta 11.
 - **Lembrete com opt-in desligado no envio:** RFC L248 confere o opt-in no envio. Proposta: lembrete fica `CANCELLED` com `error_log = 'sem opt-in'`.
+
+### 1.19 Pontos resolvidos pelas decisões D17 a D28
+
+- **Webhook do formulário com telefone duplicado (D17):** RN-06 dizia apenas que o duplicado "bloqueia a criação e sugere o lead existente", sem definir a resposta HTTP. Agora o webhook responde HTTP 200 com o id do lead existente, sem alterar o lead.
+- **Próximo passo dos leads do CSV (D18):** etapa `NOVO` e "Primeiro contato" em agora + 1h, igual ao formulário, satisfazendo o CHECK da RN-01.
+- **Exclusão feita direto no Google (D19):** evento conhecido excluído no Google faz o compromisso virar `status = CANCELLED` (não `deleted_at`) e os lembretes, `CANCELLED`. `deleted_at` fica reservado à exclusão feita no OperaON.
+- **Webhook interno do WhatsApp sem autenticação definida (D20):** nova variável `WHATSAPP_WEBHOOK_TOKEN` na seção 7 do RFC protege o webhook, além da rede interna.
+- **Fuso duplicado entre `tenants.timezone` e `TZ_DEFAULT` (D21):** `tenants.timezone` é a fonte da verdade; `TZ_DEFAULT` apenas preenche o padrão do tenant novo.
+- **Imutabilidade de `lead_interactions` só no texto (D22):** a tabela de ciclo de vida do RFC dizia "imutável", sem garantia no banco. A sessão 1 entrega trigger que bloqueia UPDATE e DELETE.
+- **Tela de acessos na sessão 2 (D23):** a sessão 2 entrega apenas a API de Acessos; a tela fica na sessão 7b, junto com o resto do front.
+- **RN-10 com lead GANHO sem campo de destaque (D24):** o destaque na agenda usa `confirmacao_cliente = REMARCAR`, sem coluna nova, e o responsável é avisado pelo `Notifier`.
+- **Lembretes vencidos durante indisponibilidade (D26):** no boot, lembrete `PENDING` com `scheduled_for` vencido vira `CANCELLED` com `error_log = "vencido durante indisponibilidade"`, exceto `INSTANT_CONFIRMATION` de compromisso ainda futuro, que é enviado.
+- **Ferramentas fora da stack do RFC (D27):** `restic` (sessão 8) e Testing Library (sessão 7) aprovados; a justificativa vai no PR de cada sessão.
+- **Critérios de aceite que faltavam (D28):** teste do índice de expressão da RN-03 (sessão 1), teste da exclusão física auditada de `message_templates` (sessão 3) e alerta de queda da sessão do WhatsApp (sessão 8).
 
 ## 2. Riscos técnicos
 
@@ -189,19 +202,21 @@ Base: tabela da seção 9 do RFC e prompts `docs/prompts/01` a `08`. Todos os te
 
 ### Sessão 1: fundação
 
-- **Módulos:** raiz (`pnpm-workspace.yaml`, `tsconfig` base strict, lint), `apps/api` (Fastify com rota de saúde, Drizzle, seed), migrations (schema completo da seção 5 do RFC, incluindo `users.google_reauth_required`), `apps/web` ("hello"), `apps/worker` (esqueleto BullMQ), `packages/shared` (esqueleto de schemas Zod), `docker-compose.dev.yml`, `.github/workflows/ci.yml`, `.env.example` (com `ADMIN_EMAIL`).
+- **Módulos:** raiz (`pnpm-workspace.yaml`, `tsconfig` base strict, lint), `apps/api` (Fastify com rota de saúde, Drizzle, seed), migrations (schema completo da seção 5 do RFC, incluindo `users.google_reauth_required` e o trigger de imutabilidade de `lead_interactions` (D22)), `apps/web` ("hello"), `apps/worker` (esqueleto BullMQ), `packages/shared` (esqueleto de schemas Zod), `docker-compose.dev.yml`, `.github/workflows/ci.yml`, `.env.example` (com `ADMIN_EMAIL`).
 - **Testes:**
   - RN-01 (CHECK): INSERT de lead NOVO sem `data_proximo_passo` ou sem `descricao_proximo_passo` falha; GANHO e PERDIDO sem próximo passo passam.
   - RN-05 (CHECK): PERDIDO sem `motivo_perda` falha; com motivo passa.
   - RN-06 (índice único parcial): mesmo `(tenant_id, telefone_e164)` falha; após `deleted_at` no primeiro, o segundo passa; mesmo telefone em outro tenant passa.
   - Trigger de `updated_at` atualiza a coluna em UPDATE.
+  - Trigger de imutabilidade (D22): UPDATE e DELETE em `lead_interactions` falham.
+  - RN-03 (D28): a consulta da revisão usa o índice de expressão `idx_leads_inativos` (`EXPLAIN` mostra index scan, não seq scan).
   - Migrations: up, down, up sem erro.
   - Seed: tenant com `default_owner_user_id` = admin `ACTIVE` e `ADMIN` com e-mail `ADMIN_EMAIL`; lead nunca contatado criado há mais de 7 dias existe.
-- **Critérios de aceite:** `docker compose up` e `pnpm dev` sobem api, web e worker sem erro; `pnpm db:migrate` e `pnpm db:rollback` funcionam; testes de RN-01, RN-05 e RN-06 no banco verdes; `.env.example` com todas as variáveis da seção 7 do RFC, sem valores reais; CI (lint, typecheck, testes) verde.
+- **Critérios de aceite:** `docker compose up` e `pnpm dev` sobem api, web e worker sem erro; `pnpm db:migrate` e `pnpm db:rollback` funcionam; testes de RN-01, RN-05 e RN-06 no banco verdes; trigger de imutabilidade de `lead_interactions` testado (D22) e índice de expressão da RN-03 verificado (D28); `.env.example` com todas as variáveis da seção 7 do RFC, sem valores reais; CI (lint, typecheck, testes) verde.
 
-### Sessão 2: autenticação, aprovação, sessões, acessos
+### Sessão 2: autenticação, aprovação, sessões, API de acessos
 
-- **Módulos:** `apps/api` (rotas OAuth, sessão Redis com set `user_sessions:<user_id>`, middleware de autenticação e papel, módulo de acessos, `audit_log`, cripto AES-256-GCM, `Notifier` e `LogNotifier`), `packages/shared` (schemas das rotas e tipo `Notifier`).
+- **Módulos:** `apps/api` (rotas OAuth, sessão Redis com set `user_sessions:<user_id>`, middleware de autenticação e papel, API de acessos sem interface (D23), `audit_log`, cripto AES-256-GCM, `Notifier` e `LogNotifier`), `packages/shared` (schemas das rotas e tipo `Notifier`).
 - **Testes:**
   - E-mail novo cria usuário `PENDING` e chama `LogNotifier` com link de aprovação para `ADMIN_WHATSAPP` (D1).
   - Primeiro login com e-mail igual a `ADMIN_EMAIL` vira `ADMIN` e `ACTIVE` (D1).
@@ -212,7 +227,7 @@ Base: tabela da seção 9 do RFC e prompts `docs/prompts/01` a `08`. Todos os te
   - `ACTIVE` sem refresh token ou com `google_reauth_required = true` é levado ao consentimento do escopo de agenda (D12).
   - Cookie com HttpOnly, Secure e SameSite=Lax; logout apaga a sessão e a remove do set.
   - Usuário `USER` recebe 403 nas rotas de acessos.
-- **Critérios de aceite:** os três testes do prompt 02 verdes; token nunca aparece em texto puro no banco nem nos logs; link de aprovação expira e não pode ser reutilizado; aviso ao admin passa pela interface `Notifier`.
+- **Critérios de aceite:** os três testes do prompt 02 verdes; token nunca aparece em texto puro no banco nem nos logs; link de aprovação expira e não pode ser reutilizado; aviso ao admin passa pela interface `Notifier`; a sessão 2 entrega somente a API de acessos, a tela fica na 7b (D23).
 
 ### Sessão 3: leads, interações, fila, funil, templates
 
@@ -221,11 +236,12 @@ Base: tabela da seção 9 do RFC e prompts `docs/prompts/01` a `08`. Todos os te
   - RN-01 na API: criar ou atualizar lead aberto sem próximo passo retorna 422.
   - RN-02: registrar interação atualiza `data_ultimo_contato`, etapa e próximo passo do lead e grava a interação como histórico (D3); falha no meio da transação não deixa nada gravado.
   - RN-05: mover para PERDIDO sem motivo retorna 422; com motivo e detalhe grava.
-  - RN-06: variações de telefone viram o mesmo E.164; duplicado retorna 409 com o id do lead existente.
+  - RN-06: variações de telefone viram o mesmo E.164; duplicado retorna 409 com o id do lead existente na API interna (o webhook do formulário responde 200 com o id, D17).
+  - Templates (D28): exclusão é física e grava linha no `audit_log` com entidade `message_templates`, id e dados da linha apagada.
   - RN-12: excluir lead preenche `deleted_at`, some das listagens e grava no `audit_log`; `lead_interactions` não tem rota de edição nem de exclusão.
   - Cadastro manual aceita `whatsapp_opt_in` (D5).
   - Escopo: usuário comum não vê nem altera lead de outro (404); admin vê todos (ADR-4).
-  - Fila (D8): datas fixas perto da meia-noite de São Paulo; Atrasado = `data_proximo_passo < agora`; Hoje = de agora até 23:59:59; Próximos 7 dias = amanhã 00:00 até +7 dias; contadores corretos; fila lê só de `leads` (D3).
+  - Fila (D8 e D21): datas fixas perto da meia-noite do fuso de `tenants.timezone` (`TZ_DEFAULT` só preenche o padrão); Atrasado = `data_proximo_passo < agora`; Hoje = de agora até 23:59:59; Próximos 7 dias = amanhã 00:00 até +7 dias; contadores corretos; fila lê só de `leads` (D3).
   - Funil: quantidade e soma de `valor_estimado` por etapa, ignorando excluídos.
   - Templates: substituição de `{nome}`, `{empresa}`, `{necessidade}` e link `wa.me` com texto codificado.
 - **Critérios de aceite:** sessão 3 cobre RN-01, RN-02, RN-05, RN-06 e RN-12 com testes verdes; isolamento por usuário comprovado; "hoje" calculado em America/Sao_Paulo conforme D8; coleção `.http` em `docs/api/` cobre as rotas novas.
@@ -237,9 +253,9 @@ Base: tabela da seção 9 do RFC e prompts `docs/prompts/01` a `08`. Todos os te
   - RN-03 com datas fixas: 7 dias exatos não é inativo, 7 dias e 1 minuto é; lead nunca contatado conta pela criação; GANHO, PERDIDO e excluído ficam fora; `nutricao_ate` futuro exclui, vencido inclui.
   - RN-04: nutrir 15 ou 30 dias grava `nutricao_ate` correto; outros valores retornam 422.
   - Reativar exige novo próximo passo (RN-01); encerrar como PERDIDO exige motivo (RN-05).
-  - Webhook: token inválido ou ausente retorna 401; lead criado no INSERT com etapa NOVO, origem "Formulário do site", UTM, `data_proximo_passo = agora + 1h`, descrição "Primeiro contato" (D2); necessidade vazia vira "Não informada" (D2); `whatsapp_opt_in` ausente = false (D5); duplicado não cria lead (RN-06).
+  - Webhook: token inválido ou ausente retorna 401; lead criado no INSERT com etapa NOVO, origem "Formulário do site", UTM, `data_proximo_passo = agora + 1h`, descrição "Primeiro contato" (D2); necessidade vazia vira "Não informada" (D2); `whatsapp_opt_in` ausente = false (D5); telefone duplicado responde HTTP 200 com o id do lead existente, sem criar nem alterar lead (D17, RN-06).
   - RN-15: responsável padrão `ACTIVE` recebe o lead; vazio ou não `ACTIVE` leva ao admin `ACTIVE` mais antigo; sem admin `ACTIVE`, webhook responde 503 e CSV é recusado.
-  - CSV: pré-visualização não grava nada; defaults de RN-07; coluna `opt_in` (sim/não; vazia = não) (D5); telefone duplicado pula a linha, não atualiza o lead e consta no relatório (D6); erros por linha não impedem as linhas válidas.
+  - CSV: pré-visualização não grava nada; defaults de RN-07; lead criado em `NOVO` com "Primeiro contato" em agora + 1h (D18); coluna `opt_in` (sim/não; vazia = não) (D5); telefone duplicado pula a linha, não atualiza o lead e consta no relatório (D6); erros por linha não impedem as linhas válidas.
 - **Critérios de aceite:** testes de RN-03 e RN-04 com relógio falso verdes; webhook recusa token inválido e aplica RN-06, RN-07 e RN-15; import não cria duplicados e informa o que foi ignorado; coleção `.http` em `docs/api/`.
 
 ### Sessão 5: agenda e sync Google
@@ -249,11 +265,11 @@ Base: tabela da seção 9 do RFC e prompts `docs/prompts/01` a `08`. Todos os te
   - Criar agenda "OperaON" na primeira autorização e guardar `google_calendar_id`; nenhuma chamada usa `calendarId = 'primary'`.
   - RN-11: Google OK grava `SYNCED` e `google_event_id`; falha grava `PENDING`; reprocessamento segue 1 min, 5 min, 15 min, 1 h e depois a cada 6 h; após 24 h vira `ERROR` (D11).
   - RN-13: compromisso sem lead, com lead excluído ou com telefone fora de E.164 retorna 422; início depois do fim retorna 422.
-  - RN-14: evento criado direto no Google é ignorado e logado; alteração de horário conhecida é aplicada; evento `cancelled` conhecido vira `CANCELLED`; resposta 410 dispara sync completo.
-  - RN-16: excluir ou marcar PERDIDO cancela compromissos futuros, marca lembretes `CANCELLED` e remove o evento do Google; lead GANHO mantém; compromissos passados não mudam.
+  - RN-14: evento criado direto no Google é ignorado e logado; alteração de horário conhecida é aplicada; evento conhecido excluído ou `cancelled` no Google vira `status = CANCELLED` com lembretes `CANCELLED` e sem tocar em `deleted_at` (D19); resposta 410 dispara sync completo.
+  - RN-16 (D25): os três caminhos que geram PERDIDO cancelam compromissos futuros, marcam lembretes `CANCELLED` e removem o evento do Google: perda registrada em interação (sessão 3), perda na revisão semanal (sessão 4) e exclusão do lead. Lead GANHO mantém; compromissos passados não mudam.
   - `invalid_grant` marca `google_reauth_required = true` e deixa sync e criação em `PENDING` (D12).
   - Compromisso para lead sem opt-in é criado e a resposta sinaliza o aviso (D5).
-- **Critérios de aceite:** sessão 5 cobre RN-11, RN-13, RN-14 e RN-16 com Google mockado; alteração feita no Google aparece no OperaON em até 5 min (verificação em staging); nenhum evento na agenda principal; coleção `.http` em `docs/api/`.
+- **Critérios de aceite:** sessão 5 cobre RN-11, RN-13, RN-14 e RN-16 (nos três caminhos de D25) com Google mockado; alteração feita no Google aparece no OperaON em até 5 min (verificação em staging); nenhum evento na agenda principal; coleção `.http` em `docs/api/`.
 
 ### Sessão 6: worker, WhatsApp, confirmação e opt-out
 
@@ -261,8 +277,10 @@ Base: tabela da seção 9 do RFC e prompts `docs/prompts/01` a `08`. Todos os te
 - **Testes:**
   - RN-08: criação não gera lembrete com horário já passado; `job_id` = `rem:<appointment_id>:<tipo>:<epoch>`; remarcar atualiza a mesma linha, remove o job antigo e cria o novo; linha cujo novo horário já passou vira `CANCELLED`; cancelar remove jobs e marca `CANCELLED`.
   - Reinício do worker (D14): recria jobs de `appointment_reminders` PENDING com `scheduled_for` futuro sem duplicar jobs nem envios; lembrete `SENT` não é reenviado.
+  - Boot com lembretes vencidos (D26): `PENDING` com `scheduled_for` no passado vira `CANCELLED` com `error_log = "vencido durante indisponibilidade"`; `INSTANT_CONFIRMATION` de compromisso ainda futuro é enviado.
+  - Webhook interno recusa requisição sem `WHATSAPP_WEBHOOK_TOKEN` válido (D20).
   - RN-09: lead sem opt-in no momento do envio não recebe mensagem; "sair" normalizado (D10) desliga o opt-in.
-  - RN-10: "1" grava `CONFIRMADO` e `status = CONFIRMED`; "2" com lead em aberto grava `REMARCAR`, `data_proximo_passo = agora` e descrição "Remarcar: <título>"; "2" com lead GANHO não altera o lead, chama o Notifier e destaca o compromisso; resposta de lead PERDIDO ou excluído é ignorada e logada (D4).
+  - RN-10: "1" grava `CONFIRMADO` e `status = CONFIRMED`; "2" com lead em aberto grava `REMARCAR`, `data_proximo_passo = agora` e descrição "Remarcar: <título>"; "2" com lead GANHO não altera o lead, grava `confirmacao_cliente = REMARCAR` para destacar o compromisso na agenda e chama o `Notifier` (D24); resposta de lead PERDIDO ou excluído é ignorada e logada (D4).
   - Associação (D7): telefone, lead único do tenant, compromisso futuro não cancelado com lembrete `SENT` mais recente; sem correspondência, log.
   - Normalização (D10): " 1 ", "SAIR", "Saír" são reconhecidos; outros textos ignorados.
   - Retry com backoff grava `error_log` e termina em `FAILED`; rate limit respeitado.
@@ -272,20 +290,20 @@ Base: tabela da seção 9 do RFC e prompts `docs/prompts/01` a `08`. Todos os te
 ### Sessão 7a: base visual, login, fila e captura
 
 - **Módulos:** `apps/web` (tema Tailwind com cores e fontes de `docs/prototipo.md`, roteamento, cliente TanStack Query, login e aguardando liberação, pedido de reautorização Google (D12), fila do dia desktop e celular, modal de registrar contato, cadastro manual com checkbox de opt-in (D5), importação de CSV com relatório (D6)), `packages/shared` (reuso dos schemas Zod).
-- **Testes:** Vitest com Testing Library por tela: estados vazio, carregando, erro e sem permissão; modal bloqueia salvar sem próximo passo (RN-01) e PERDIDO sem motivo (RN-05); laranja só em itens Atrasados (D8); nenhum texto com travessão; labels, botões reais e alvos de toque de 44px.
+- **Testes:** Vitest com Testing Library (aprovada por D27) por tela: estados vazio, carregando, erro e sem permissão; modal bloqueia salvar sem próximo passo (RN-01) e PERDIDO sem motivo (RN-05); laranja só em itens Atrasados (D8); nenhum texto com travessão; labels, botões reais e alvos de toque de 44px.
 - **Critérios de aceite:** telas conferidas com as capturas de `docs/prototipo/` (D9); fila navegável no celular e no desktop em staging; nenhuma tela sem estado de erro.
 
 ### Sessão 7b: funil, revisão, agenda e acessos
 
-- **Módulos:** `apps/web` (funil kanban, revisão semanal com nutrição, agenda com destaque de REMARCAR, aviso de lead sem opt-in (D5) e aviso de sync `ERROR` (D11), tela de acessos para admin).
-- **Testes:** mesmos padrões da 7a por tela; agenda mostra aviso de `ERROR` e de lead sem opt-in; acessos só para admin.
+- **Módulos:** `apps/web` (funil kanban, revisão semanal com nutrição, agenda com destaque de `confirmacao_cliente = REMARCAR` (D24), aviso de lead sem opt-in (D5) e aviso de sync `ERROR` (D11), tela de acessos para admin, entregue aqui e não na sessão 2 (D23)).
+- **Testes:** mesmos padrões da 7a por tela, com Testing Library (D27); agenda mostra aviso de `ERROR`, destaque de `REMARCAR` (D24) e aviso de lead sem opt-in; acessos só para admin.
 - **Critérios de aceite:** fluxo completo navegável em staging no celular e no desktop, conforme `docs/prototipo/`; nenhum texto com travessão; nenhuma tela sem estado de erro.
 
 ### Sessão 8: deploy, CI/CD, backup
 
-- **Módulos:** Dockerfiles multi-stage de `apps/api`, `apps/web` e `apps/worker`; stack Swarm com Traefik; workflows do GitHub Actions; script de backup; `docs/runbook.md` e documento de restore.
-- **Testes:** build das três imagens no CI; healthcheck responde; restore do `pg_dump` em banco limpo com contagem de linhas; verificação de que Postgres, Redis e WhatsApp não publicam portas.
-- **Critérios de aceite:** deploy em staging a partir de merge na main; produção só com aprovação manual; `pg_dump` diário às 03:00 com retenção de 7 diários e 4 semanais, enviado via SSH ao servidor doméstico, restore testado e documentado (D16); runbook cobre WhatsApp desconectado, token Google revogado (D12) e rollback; nenhuma porta de banco, Redis ou WhatsApp exposta.
+- **Módulos:** Dockerfiles multi-stage de `apps/api`, `apps/web` e `apps/worker`; stack Swarm com Traefik; workflows do GitHub Actions; script de backup com `restic` (D27); alerta de queda da sessão do WhatsApp (D28); `docs/runbook.md` e documento de restore.
+- **Testes:** build das três imagens no CI; healthcheck responde; restore do `pg_dump` em banco limpo com contagem de linhas; verificação de que Postgres, Redis e WhatsApp não publicam portas; alerta dispara quando a sessão do WhatsApp cai (D28).
+- **Critérios de aceite:** deploy em staging a partir de merge na main; produção só com aprovação manual; `pg_dump` diário às 03:00 com retenção de 7 diários e 4 semanais, enviado via SSH ao servidor doméstico, restore testado e documentado (D16); backup versionado com `restic` (D27); alerta de queda da sessão do WhatsApp em funcionamento (D28); runbook cobre WhatsApp desconectado, token Google revogado (D12) e rollback; nenhuma porta de banco, Redis ou WhatsApp exposta.
 
 ## 5. Perguntas para o arquiteto
 
@@ -301,8 +319,8 @@ Perguntas originais do rascunho do plano mestre, com a decisão que responde cad
 8. **Protótipo:** copiar capturas para dentro do repositório? **Respondida por D9.**
 9. **Aviso de novo cadastro sem admin ACTIVE e primeiro admin fora do seed:** quem recebe e como o primeiro admin nasce? **Respondida por D1.**
 10. **`necessidade_resumo` NOT NULL no formulário:** obrigatório ou "Não informada"? **Respondida por D2.**
-11. **Próximo passo de leads do CSV:** aplicar "Primeiro contato" em +1h a todas as linhas ou outra regra? **Pendente:** não coberta explicitamente por D1 a D16; proposta em 1.18.
-12. **Exclusão feita no Google:** vira `status = CANCELLED` (e não `deleted_at`)? **Pendente:** não coberta explicitamente por D1 a D16; proposta em 1.18.
+11. **Próximo passo de leads do CSV:** aplicar "Primeiro contato" em +1h a todas as linhas ou outra regra? **Respondida por D18.**
+12. **Exclusão feita no Google:** vira `status = CANCELLED` (e não `deleted_at`)? **Respondida por D19.**
 
 Perguntas levantadas nesta revisão e já respondidas:
 
@@ -312,24 +330,85 @@ Perguntas levantadas nesta revisão e já respondidas:
 16. **Recuperação de jobs após restart do worker:** de onde recriar? **Respondida por D14.**
 17. **Tamanho da sessão 7 e testes das sessões 3 a 6 sem interface:** dividir e como testar? **Respondida por D15.**
 18. **Backup da sessão 8:** horário, retenção, destino e restore? **Respondida por D16.**
+19. **Resposta HTTP do webhook para telefone duplicado:** 409 ou 200 com o id existente? **Respondida por D17.**
+20. **Autenticação do webhook interno do WhatsApp:** qual token? **Respondida por D20.**
+21. **Fuso: `tenants.timezone` ou `TZ_DEFAULT`?** **Respondida por D21.**
+22. **Imutabilidade de `lead_interactions`:** garantir no banco? **Respondida por D22** (trigger na sessão 1).
+23. **Tela de acessos:** sessão 2 ou sessão 7b? **Respondida por D23.**
+24. **Destaque do compromisso de lead GANHO:** coluna nova ou `confirmacao_cliente = REMARCAR`? **Respondida por D24.**
+25. **Lembretes vencidos durante indisponibilidade do worker:** enviar atrasado ou cancelar? **Respondida por D26.**
+26. **Ferramentas fora da stack do RFC (`restic`, Testing Library):** aprovadas? **Respondida por D27.**
 
 ## 6. Decisões do arquiteto
 
-Decisões aprovadas por Mateus em 2026-09-30 (Sessão 0).
+Texto literal aprovado por Mateus em 2026-09-30 (Sessão 0).
 
-- **D1. Admin inicial e responsável padrão.** Nova variável `ADMIN_EMAIL`. O seed cria o tenant, o admin com esse e-mail e preenche `tenants.default_owner_user_id`. O primeiro login com e-mail igual a `ADMIN_EMAIL` vira `ADMIN` e `ACTIVE`. O aviso de novo cadastro vai sempre para `ADMIN_WHATSAPP`. A RN-15 é proteção em tempo de execução.
-- **D2. Próximo passo e necessidade no formulário.** O webhook grava `data_proximo_passo = agora + 1h` e `descricao_proximo_passo = 'Primeiro contato'` no próprio INSERT. Necessidade vazia vira "Não informada" também no formulário.
-- **D3. Fonte da verdade do próximo passo.** `leads.data_proximo_passo` e `leads.descricao_proximo_passo`. Os campos de próximo passo em `lead_interactions` são registro histórico.
-- **D4. Resposta de lead PERDIDO ou excluído.** Ignorada e registrada em log.
-- **D5. Opt-in explícito.** Checkbox "Cliente autorizou mensagens no WhatsApp" no cadastro manual; campo booleano `whatsapp_opt_in` no formulário do site (ausente = false); coluna opcional `opt_in` no CSV (sim/não; vazia = não). Aviso na tela ao criar compromisso para lead sem opt-in.
-- **D6. Telefone duplicado no CSV.** A linha é pulada, nunca atualiza o lead existente e aparece no relatório de importação.
-- **D7. Associação da resposta do WhatsApp.** Telefone, lead único do tenant (RN-06), compromisso futuro não cancelado com o lembrete `SENT` mais recente. Sem correspondência: ignora e registra em log.
-- **D8. Fila diária em America/Sao_Paulo.** Atrasado = `data_proximo_passo < agora`; Hoje = de agora até 23:59:59; Próximos 7 dias = amanhã 00:00 até +7 dias; "fila de hoje" = Atrasados + Hoje; o laranja do protótipo é Atrasado.
-- **D9. Protótipo.** Capturas ficam em `docs/prototipo/` como referência visual.
-- **D10. WhatsApp.** Envio implementado contra o adaptador `WhatsAppProvider` com `send(telefone, texto)` e webhook normalizado `{from, text, timestamp}`. Respostas normalizadas (trim, minúsculas, sem acento) aceitando "1", "2" e "sair". Stack concreta confirmada antes da sessão 6.
-- **D11. Retry de sync PENDING.** Backoff de 1 min, 5 min, 15 min, 1 h e depois a cada 6 h. Após 24 h, `sync_status = ERROR` e aviso na agenda.
-- **D12. Refresh token revogado.** Coluna `users.google_reauth_required BOOLEAN NOT NULL DEFAULT FALSE`. `invalid_grant` marca `true`, a interface pede nova autorização, sync e criação ficam `PENDING`.
-- **D13. Sessões ao bloquear.** Set Redis `user_sessions:<user_id>`; bloquear apaga todas as sessões do usuário.
-- **D14. Restart do worker.** Recria jobs a partir de `appointment_reminders` PENDING com `scheduled_for` futuro.
-- **D15. Sessão 7 e testes via API.** Sessão 7 dividida em 7a e 7b. Testes das sessões 3 a 6 via API, com coleção `.http` em `docs/api/`.
-- **D16. Backup.** `pg_dump` diário às 03:00, retenção de 7 diários e 4 semanais, envio via SSH ao servidor doméstico, restore testado e documentado.
+```text
+D1. Admin inicial: variável ADMIN_EMAIL. O primeiro login com esse e-mail
+    vira ADMIN e ACTIVE. O seed preenche default_owner_user_id; a RN-15 é
+    proteção em tempo de execução. O aviso de novo cadastro vai sempre
+    para ADMIN_WHATSAPP.
+D2. Webhook do formulário grava data_proximo_passo = agora + 1h e
+    descricao_proximo_passo = "Primeiro contato" no INSERT. Necessidade
+    vazia vira "Não informada".
+D3. Fonte da verdade do próximo passo: leads.data_proximo_passo e
+    leads.descricao_proximo_passo. Os campos em lead_interactions são
+    registro histórico.
+D4. Resposta de lead PERDIDO ou excluído: ignorar e registrar em log.
+D5. Opt-in explícito: checkbox no cadastro manual e botão na tela do lead
+    (com audit_log); campo whatsapp_opt_in no formulário (ausente = false);
+    coluna opt_in no CSV (sim/não, vazia = não). Compromisso para lead sem
+    opt-in mostra aviso de que não haverá lembretes.
+D6. CSV com telefone duplicado: linha pulada, nunca atualiza, aparece no
+    relatório.
+D7. Associação da resposta: telefone -> lead do tenant -> compromisso
+    futuro, não cancelado, com o lembrete SENT mais recente. Sem
+    correspondência: ignora e registra em log.
+D8. Fila: Atrasado = data_proximo_passo < agora; Hoje = de agora até
+    23:59:59; Próximos 7 dias = amanhã 00:00 até +7 dias. Fila de hoje =
+    Atrasados + Hoje. Laranja do protótipo = Atrasado.
+D9. Protótipo: capturas em docs/prototipo/ são a referência visual;
+    prototipo.md passa a apontar para a pasta.
+D10. WhatsApp via adaptador WhatsAppProvider com send(telefone, texto) e
+    webhook normalizado {from, text, timestamp}. Stack confirmada antes da
+    sessão 6. Respostas normalizadas: trim, minúsculas, sem acento;
+    aceitar "1", "2" e "sair".
+D11. Retry do sync PENDING: 1 min, 5 min, 15 min, 1 h, depois a cada 6 h.
+    Após 24 h: sync_status = ERROR e aviso na agenda.
+D12. invalid_grant: coluna users.google_reauth_required = true; a
+    interface pede nova autorização; operações no Google ficam PENDING.
+D13. Sessões: set no Redis user_sessions:<user_id> para derrubar todas ao
+    bloquear.
+D14. No restart, o worker recria os jobs de appointment_reminders PENDING
+    com scheduled_for futuro.
+D15. Testes das sessões 3 a 6 pela API (Vitest/Supertest) e coleção .http
+    em docs/api/. Sessão 7 dividida em 7a (base visual, login, fila, modal
+    de contato, cadastro e importação) e 7b (funil, revisão, agenda,
+    acessos).
+D16. Backup: pg_dump diário às 03:00, retenção de 7 diários e 4 semanais,
+    envio ao servidor doméstico via SSH, restore testado e documentado.
+D17. Webhook do formulário com telefone duplicado: HTTP 200 com o id do
+    lead existente, sem alterar o lead.
+D18. Lead do CSV: etapa NOVO, "Primeiro contato" em agora + 1h.
+D19. Evento conhecido excluído direto no Google: compromisso vira
+    status = CANCELLED (não deleted_at) e os lembretes, CANCELLED.
+D20. Webhook interno do WhatsApp protegido por nova variável
+    WHATSAPP_WEBHOOK_TOKEN (adicionar à seção 7 do RFC).
+D21. Fuso: tenants.timezone é a fonte; TZ_DEFAULT só preenche o padrão.
+D22. Aprovado: trigger de imutabilidade em lead_interactions (sessão 1).
+D23. Sessão 2 entrega só a API de Acessos; a tela fica na 7b.
+D24. RN-10 com lead GANHO: o destaque na agenda é
+    confirmacao_cliente = REMARCAR, sem coluna nova, e o responsável é
+    avisado pelo Notifier.
+D25. RN-16 na sessão 5, cobrindo explicitamente os caminhos que geram
+    PERDIDO: interação (sessão 3), revisão (sessão 4) e exclusão de lead.
+D26. Worker no boot: lembrete PENDING com scheduled_for vencido vira
+    CANCELLED com error_log "vencido durante indisponibilidade", exceto
+    INSTANT_CONFIRMATION de compromisso ainda futuro, que é enviado.
+D27. restic (sessão 8) e Testing Library (sessão 7) aprovados; a
+    justificativa vai no PR de cada sessão.
+D28. Adicionar aos critérios de aceite: teste do índice de expressão da
+    RN-03 (sessão 1), teste da exclusão física auditada de
+    message_templates (sessão 3) e alerta de queda da sessão do WhatsApp
+    (sessão 8).
+```

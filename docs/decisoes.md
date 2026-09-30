@@ -32,3 +32,15 @@
 | 2026-09-30 | Sessão 0 | D14: worker recria jobs a partir de `appointment_reminders` PENDING com `scheduled_for` futuro após restart | Mateus |
 | 2026-09-30 | Sessão 0 | D15: sessão 7 dividida em 7a e 7b; testes das sessões 3 a 6 via API com coleção `.http` em `docs/api/` | Mateus |
 | 2026-09-30 | Sessão 0 | D16: backup `pg_dump` diário às 03:00, retenção 7 diários + 4 semanais, envio via SSH ao servidor doméstico, restore testado e documentado | Mateus |
+| 2026-09-30 | Sessão 0 | D17: webhook do formulário com telefone duplicado responde HTTP 200 com o id do lead existente, sem alterar o lead | Mateus |
+| 2026-09-30 | Sessão 0 | D18: lead importado do CSV entra em NOVO com "Primeiro contato" em agora + 1h | Mateus |
+| 2026-09-30 | Sessão 0 | D19: evento conhecido excluído direto no Google vira `status = CANCELLED` (não `deleted_at`), com lembretes CANCELLED | Mateus |
+| 2026-09-30 | Sessão 0 | D20: webhook interno do WhatsApp protegido por `WHATSAPP_WEBHOOK_TOKEN` | Mateus |
+| 2026-09-30 | Sessão 0 | D21: `tenants.timezone` é a fonte do fuso; `TZ_DEFAULT` só preenche o padrão | Mateus |
+| 2026-09-30 | Sessão 0 | D22: trigger de imutabilidade em `lead_interactions` na sessão 1 | Mateus |
+| 2026-09-30 | Sessão 0 | D23: sessão 2 entrega só a API de Acessos; a tela fica na 7b | Mateus |
+| 2026-09-30 | Sessão 0 | D24: RN-10 com lead GANHO usa `confirmacao_cliente = REMARCAR` para destacar a agenda, sem coluna nova, e avisa o responsável pelo Notifier | Mateus |
+| 2026-09-30 | Sessão 0 | D25: RN-16 na sessão 5, cobrindo perda por interação (sessão 3), perda na revisão (sessão 4) e exclusão de lead | Mateus |
+| 2026-09-30 | Sessão 0 | D26: no boot, lembrete PENDING vencido vira CANCELLED com `error_log` "vencido durante indisponibilidade", exceto INSTANT_CONFIRMATION de compromisso futuro | Mateus |
+| 2026-09-30 | Sessão 0 | D27: `restic` (sessão 8) e Testing Library (sessão 7) aprovados, com justificativa no PR de cada sessão | Mateus |
+| 2026-09-30 | Sessão 0 | D28: novos critérios de aceite: índice de expressão da RN-03 (sessão 1), exclusão física auditada de `message_templates` (sessão 3) e alerta de queda da sessão do WhatsApp (sessão 8) | Mateus |
