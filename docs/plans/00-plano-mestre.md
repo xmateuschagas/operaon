@@ -26,7 +26,7 @@ As decisões do arquiteto (D1 a D28) estão na seção final. Cada item abaixo i
 ### 1.3 RN-16 sem mapeamento explícito no RFC (resolvido por D25)
 
 - **Onde:** RN-16 (RN L20); tabela de sessões (RFC L284 a L294) não cita RN-16; o fluxo de compromisso (RFC L247 a L251) também não. Só `docs/prompts/05-agenda-google.md` (item 2) menciona "RN-16 ao excluir ou perder o lead".
-- **Resolução (D25):** RN-16 fica explicitamente na sessão 5, cobrindo os três caminhos que geram PERDIDO (interação na sessão 3, revisão na sessão 4 e exclusão do lead) (cancelar compromissos futuros, lembretes `CANCELLED`, evento removido do Google, com `sync_status = PENDING` se o Google falhar). Na sessão 6 a mesma rotina passa a remover os jobs do BullMQ pelo `job_id`. A linha da sessão 5 na seção 9 do RFC passa a citar RN-16.
+- **Resolução (D25):** RN-16 fica explicitamente na sessão 5 e cobre os três caminhos que geram PERDIDO: interação (sessão 3), revisão semanal (sessão 4) e exclusão do lead. Em todos eles, compromissos futuros são cancelados, os lembretes ficam `CANCELLED` e o evento é removido do Google, com `sync_status = PENDING` se o Google falhar. Na sessão 6 a mesma rotina passa a remover os jobs do BullMQ pelo `job_id`. A linha da sessão 5 na seção 9 do RFC passa a citar RN-16.
 
 ### 1.4 Dupla fonte do próximo passo (resolvido por D3)
 
