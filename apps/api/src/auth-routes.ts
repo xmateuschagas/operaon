@@ -8,6 +8,7 @@ import type { Notifier } from '@operaon/shared/notifier';
 import type { AuthConfig } from './config.js';
 import type { GoogleAuth } from './google-auth.js';
 import { asApp, withSession, requireManager, requirePlatform, type Actor, type Workspace } from './session.js';
+import { assertQuotaTenant } from './request-context.js';
 
 // Cookies contêm apenas valores base64url; parsing não depende de conteúdo enviado como JSON.
 export const getCookie = (request: FastifyRequest,name='operaon_session') => request.headers.cookie?.split(';').map((part)=>part.trim()).find((part)=>part.startsWith(`${name}=`))?.slice(name.length+1);
@@ -29,6 +30,7 @@ export function registerAuth(app:FastifyInstance,pool:Pool,deps:AuthDependencies
   type Handler=(db:PoolClient,actor:Actor,request:FastifyRequest,reply:FastifyReply)=>Promise<unknown>;
   const route=(method:'GET'|'POST'|'PATCH',url:string,tenant:boolean,handler:Handler)=>app.route({method,url,handler:async(request,reply)=>{
     return withSession(pool,getCookie(request),config,tenant,async(db,actor)=>{
+      if(tenant)assertQuotaTenant(request,actor.active_tenant_id);
       request.log=request.log.child({tenant_id:actor.active_tenant_id,user_id:actor.user_id});
       return handler(db,actor,request,reply);
     });

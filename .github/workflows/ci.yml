@@ -30,3 +30,13 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
+      - name: Validar PgBouncer transaction e RLS
+        run: |
+          docker build -f deploy/pgbouncer/Dockerfile -t operaon-pgbouncer:test .
+          pnpm test:pool
+      - name: Validar imagens e stack sem deploy
+        run: |
+          docker build -f apps/api/Dockerfile -t operaon-api:ci .
+          docker build -f apps/worker/Dockerfile -t operaon-worker:ci .
+          docker build -f apps/web/Dockerfile -t operaon-web:ci .
+          docker stack config -c deploy/stack.yml > /dev/null

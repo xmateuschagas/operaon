@@ -11,6 +11,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:pool": "tsx scripts/verify-pool.ts",
     "build": "pnpm --filter @operaon/web build",
     "db:migrate": "tsx --env-file-if-exists=.env packages/shared/src/db/cli.ts up",
     "db:rollback": "tsx --env-file-if-exists=.env packages/shared/src/db/cli.ts down",
@@ -28,6 +29,7 @@
     "react": "19",
     "react-dom": "19",
     "react-router-dom": "7",
+    "tsx": "^4.23.15",
     "zod": "3"
   },
   "devDependencies": {
@@ -40,7 +42,6 @@
     "@vitejs/plugin-react": "4",
     "eslint": "9",
     "tailwindcss": "4",
-    "tsx": "4",
     "typescript": "5.9",
     "typescript-eslint": "8",
     "vite": "6",

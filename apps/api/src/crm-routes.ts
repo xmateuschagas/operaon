@@ -8,12 +8,13 @@ import { getCookie,type AuthDependencies } from './auth-routes.js';
 import { withSession,requireManager,type Actor } from './session.js';
 import { listLeads,findLead,createLead,updateLead,addInteraction,audit,seesAll,type Lead } from './leads.js';
 import { cancelFutureAppointments } from './appointment-effects.js';
+import { assertQuotaTenant } from './request-context.js';
 
 export interface CrmDependencies extends AuthDependencies { now?:()=>Date }
 // Todos os módulos de negócio reutilizam esta borda transacional com sessão e RLS revalidadas.
 export function secured(app:FastifyInstance,pool:Pool,deps:AuthDependencies,method:HTTPMethods,url:string,handler:(db:PoolClient,actor:Actor,request:FastifyRequest)=>Promise<unknown>) {
   app.route({method,url,handler:(request)=>withSession(pool,getCookie(request),deps.config,true,(db,actor)=>{
-    request.log=request.log.child({tenant_id:actor.active_tenant_id,user_id:actor.user_id});return handler(db,actor,request);
+    assertQuotaTenant(request,actor.active_tenant_id);request.log=request.log.child({tenant_id:actor.active_tenant_id,user_id:actor.user_id});return handler(db,actor,request);
   })});
 }
 const idFrom=(request:FastifyRequest)=>z.object({id:uuidSchema}).parse(request.params).id;

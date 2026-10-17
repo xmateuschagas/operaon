@@ -8,5 +8,6 @@ export const configSchema = z.object({
   TOKEN_ENC_KEY: z.string().refine((value) => Buffer.from(value,'base64').length===32),
   GOOGLE_CLIENT_ID: z.string().min(1), GOOGLE_CLIENT_SECRET: z.string().min(1), GOOGLE_REDIRECT_URI: z.string().url(),
   SESSION_DAYS: z.coerce.number().int().positive().default(7), INVITATION_DAYS: z.coerce.number().int().positive().default(7),
+  WORKSPACE_REQUESTS_PER_MINUTE:z.coerce.number().int().positive().max(10000).default(300),
 });
 export type AuthConfig = z.infer<typeof configSchema>;
