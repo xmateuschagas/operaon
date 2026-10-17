@@ -1,6 +1,7 @@
 import { useEffect,useState } from 'react';
 import { useQuery,useQueryClient } from '@tanstack/react-query';
 import { api,ApiError,type SessionView } from './api.js';
+import { changeWorkspace } from './workspace.js';
 
 // Códigos da API permanecem estáveis; os rótulos apresentados são em português.
 const roleLabel:Record<string,string>={OWNER:'Proprietário',ADMIN:'Administrador',MEMBER:'Membro'};
@@ -29,7 +30,7 @@ export function Identity() {
   return <section>
     <h1>OperaON</h1><p>{data.user.nome}</p>
     <button disabled={busy} onClick={()=>void action(async()=>{await api('/logout','POST');client.clear();})}>Sair</button>
-    <label>Workspace<select value={data.activeTenantId??''} disabled={busy} onChange={(event)=>void action(async()=>{await api('/session/workspace','POST',{tenantId:event.target.value||null});client.clear();})}>
+    <label>Workspace<select value={data.activeTenantId??''} disabled={busy} onChange={(event)=>void action(async()=>{await changeWorkspace(client,event.target.value||null);})}>
       <option value="">Selecione um workspace</option>{data.workspaces.filter((workspace)=>workspace.status==='ACTIVE'&&workspace.member_status==='ACTIVE').map((workspace)=><option key={workspace.id} value={workspace.id}>{workspace.nome}</option>)}
     </select></label>
     {message&&<p role="status">{message}</p>}
@@ -42,3 +43,4 @@ export function Identity() {
     {data.isPlatformAdmin&&<><h2>Workspaces aguardando aprovação</h2>{platform.error?<p role="alert">{platform.error.message}</p>:platform.isPending?<p>Carregando solicitações...</p>:platform.data?.length===0?<p>Nenhuma solicitação pendente.</p>:<ul>{platform.data?.map((workspace)=><li key={workspace.id}>{workspace.nome}<button disabled={busy} onClick={()=>void action(()=>api(`/platform/workspaces/${workspace.id}/approve`,'POST'))}>Aprovar workspace</button></li>)}</ul>}</>}
   </section>;
 }
+

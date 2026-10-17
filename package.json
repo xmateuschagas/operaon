@@ -17,6 +17,8 @@
     "db:seed": "tsx --env-file-if-exists=.env packages/shared/src/db/seed.ts"
   },
   "dependencies": {
+    "@fontsource/ibm-plex-sans": "5",
+    "@fontsource/sora": "5",
     "@tanstack/react-query": "5",
     "csv-parse": "6",
     "drizzle-orm": "0.44",
