@@ -81,6 +81,9 @@ services:
         - traefik.http.routers.${ROUTER_NAME:-operaon-staging}.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}
         - traefik.http.routers.${ROUTER_NAME:-operaon-staging}.service=${ROUTER_NAME:-operaon-staging}
         - traefik.http.services.${ROUTER_NAME:-operaon-staging}.loadbalancer.server.port=8080
+        - traefik.http.services.${ROUTER_NAME:-operaon-staging}.loadbalancer.healthcheck.path=/ready
+        - traefik.http.services.${ROUTER_NAME:-operaon-staging}.loadbalancer.healthcheck.interval=10s
+        - traefik.http.services.${ROUTER_NAME:-operaon-staging}.loadbalancer.healthcheck.timeout=5s
 # Sem ports: somente o Traefik existente publica HTTPS. Banco, pool e WhatsApp ficam privados.
 networks:
   backend: {driver: overlay, internal: true, attachable: true}
