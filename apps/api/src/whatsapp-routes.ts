@@ -6,6 +6,7 @@ import { DomainError } from '@operaon/shared/errors';
 import { opaqueToken,hashToken } from '@operaon/shared/security';
 import { withTenant } from '@operaon/shared/db/connection';
 import { enqueueJob } from '@operaon/shared/jobs';
+import { takeWorkspaceQuota } from '@operaon/shared/request-limit';
 import { secured,type CrmDependencies } from './crm-routes.js';
 import { asApp,requireManager } from './session.js';
 import type { Lead } from './leads.js';
@@ -23,6 +24,7 @@ export function registerWhatsApp(app:FastifyInstance,pool:Pool,deps:CrmDependenc
     const token=request.headers.authorization?.match(/^Bearer (\S+)$/)?.[1];if(!token)throw new DomainError('UNAUTHENTICATED',401);
     const tenant=await asApp(pool,deps.config,async(db)=>(await db.query<{tenant_id:string|null}>("SELECT operaon_resolve_integration($1,$2,'WHATSAPP') AS tenant_id",[id,hashToken(token)])).rows[0]?.tenant_id);
     if(!tenant)throw new DomainError('INVALID_INTEGRATION',401);request.log=request.log.child({tenant_id:tenant,user_id:null});
+    await takeWorkspaceQuota(pool,tenant,deps.config.WORKSPACE_REQUESTS_PER_MINUTE,deps.now?.());
     return withTenant(pool,tenant,async(db)=>{
       const integration=await db.query("SELECT i.id FROM webhook_integrations i JOIN tenants t ON t.id=i.tenant_id WHERE i.id=$1 AND i.active AND t.status='ACTIVE' AND i.token_hash=$2 FOR SHARE OF i,t",[id,hashToken(token)]);if(!integration.rowCount)throw new DomainError('INVALID_INTEGRATION',401);
       const receipt=await db.query('INSERT INTO webhook_receipts(tenant_id,integration_id,external_id) VALUES($1,$2,$3) ON CONFLICT DO NOTHING RETURNING external_id',[tenant,id,external]);

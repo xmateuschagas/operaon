@@ -1,0 +1,2 @@
+# Executar em container/host de backup com cliente PG16 e secrets privados, nunca no frontend.
+0 3 * * * /opt/operaon/deploy/backup.sh

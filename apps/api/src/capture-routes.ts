@@ -7,6 +7,7 @@ import { opaqueToken,hashToken } from '@operaon/shared/security';
 import { withTenant } from '@operaon/shared/db/connection';
 import { secured,type CrmDependencies } from './crm-routes.js';
 import { asApp,requireManager } from './session.js';
+import { takeWorkspaceQuota } from '@operaon/shared/request-limit';
 import { findLead,updateLead,audit,seesAll,createLead } from './leads.js';
 import { csvBody,previewCsv,importCsv,formSchema,captureActor } from './capture.js';
 
@@ -42,6 +43,7 @@ export function registerCapture(app:FastifyInstance,pool:Pool,deps:CrmDependenci
     const body=formSchema.parse(request.body);
     const tenant=await asApp(pool,deps.config,async(db)=>(await db.query<{tenant_id:string|null}>("SELECT operaon_resolve_integration($1,$2,'FORM') AS tenant_id",[id,hashToken(token)])).rows[0]?.tenant_id);
     if(!tenant)throw new DomainError('INVALID_INTEGRATION',401,'Integração não autorizada');
+    await takeWorkspaceQuota(pool,tenant,deps.config.WORKSPACE_REQUESTS_PER_MINUTE,now());
     request.log=request.log.child({tenant_id:tenant,user_id:null});
     const result=await withTenant(pool,tenant,async(db)=>{
       const authorized=await db.query("SELECT i.id FROM webhook_integrations i JOIN tenants t ON t.id=i.tenant_id WHERE i.id=$1 AND i.active=true AND t.status='ACTIVE' AND i.token_hash=$2 FOR SHARE OF i,t",[id,hashToken(token)]);

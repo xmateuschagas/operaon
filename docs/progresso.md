@@ -14,8 +14,8 @@ Handoff autônomo de 2026-10-16. Ler este arquivo, AGENTS.md, RFC, regras e plan
 | 5 | Integrada na dev | PR #8, CI 38988883401 verde. Agenda por vínculo, Google de saída, outbox e RN-16; 37 testes acumulados. |
 | 6 | Integrada na dev | PR #9, CI 38989450345 verde. WhatsApp/lembretes e Notifier, 44 testes. Ponte real pendente de configuração/validação externa. |
 | 7a | Integrada na dev | PR #10, CI 38990191972 verde. Interface de execução e cache por workspace, 49 testes acumulados. |
-| 7b | Validada localmente, preparando PR | Revisão, agenda, CSV, configurações e acessos completos. 52 testes, lint, typecheck e build aprovados. QA desktop/mobile com fixtures locais. Migration 006 para diretório mínimo da plataforma. |
-| 8 | Pendente | Artefatos operacionais, sem executar deploy. |
+| 7b | Integrada na dev | PR #11, CI 38991441001 verde. Revisão, agenda, CSV, configurações, acessos e diretório restrito da plataforma. 52 testes e QA desktop/mobile. |
+| 8 | Validada localmente, preparando PR | Quotas/RLS multi-réplica, PgBouncer real, imagens sem root, secrets, workflows desabilitados e backup/restore. Sem deploy. |
 
 ## Evidências e retomada técnica
 
@@ -29,7 +29,9 @@ Handoff autônomo de 2026-10-16. Ler este arquivo, AGENTS.md, RFC, regras e plan
 
 - Atualização do Mateus: falha inicial causada por cobrança do repositório privado. Repositório público; novo push resolveu o CI. Workflow fixado em ubuntu-24.04. Exceção autorizada somente se repetir a mesma falha de cobrança: lint/typecheck/testes locais com saída colada no PR. Não foi necessário usar a exceção nos PRs #4 a #7.
 
+## Evidências da sessão 8
 
-
-
-
+- pnpm lint e pnpm typecheck: exit 0. pnpm test: 57 aprovados e 1 teste de pooling separado ignorado nessa execução; novo teste de logs executado depois, 1 aprovado. pnpm test:pool: 1 aprovado contra PgBouncer real (24 transações, dois tenants, um backend). CI executará todos juntos no commit final.
+- docker build: API, worker, web e PgBouncer aprovados; docker stack config validado. API/worker como node e web como nginx, todos com health/readiness 200 e proxy web /api/ready 200. URLs de smoke test só em loopback; logins de API/worker/broker sem superuser, BYPASSRLS ou CREATE no banco após bootstrap.
+- Backup custom e restore isolado: 1 workspace, 10 leads, 7 migrations. RLS: zero leads sem contexto, dez com contexto; restore-test recusou banco fora do sufixo _restore_test. Evidências locais ignoradas: .local/restore-validated.dump e .local/backup-db-names.txt.
+- Handoff não executou release.yml, publicação GHCR ou deploy. Configuração real/staging e decisões provisórias aguardam revisão do Mateus. Próximo passo: PR da sessão 8 para dev, CI verde e merge; atualizar este registro e abrir PR final dev -> main, sem merge.

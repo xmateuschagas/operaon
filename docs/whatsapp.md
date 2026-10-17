@@ -9,3 +9,5 @@ POST /notifications recebe instance, phone e text com a mesma garantia. Aprovaç
 O gestor cria a integração em POST /integrations/whatsapp. O segredo retornado uma única vez autentica POST /webhooks/whatsapp/:integration_id com Bearer e X-Event-Id. Corpo normalizado: phone (E.164), text e reply_to (ID da mensagem enviada). A ponte deve preservar o contexto da resposta; telefone sozinho não seleciona compromisso ou workspace. Mensagens sem correlação não alteram confirmação; SAIR opta por desligar o telefone no workspace autorizado mesmo sem reply_to.
 
 A entrega de lembretes tem limite de 30 mensagens por minuto por workspace, compartilhado no Postgres. Retry/backoff da JobQueue respeita a revalidação local. Payloads, telefones e segredos não entram nos logs operacionais.
+
+Monitor operacional: GET /health?instance=operaon, com Bearer, retorna {"connected":true} quando a sessão está pronta. Resposta diferente ou timeout dispara evento estruturado whatsapp_disconnected somente na mudança de estado; recuperação produz whatsapp_connected. O Mateus conecta esses eventos ao alerta operacional existente.

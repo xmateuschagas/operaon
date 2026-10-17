@@ -202,3 +202,5 @@ export const domain_jobs = pgTable('domain_jobs', {
 });
 // Janela de envio compartilhada entre réplicas; chave composta e RLS na migration 005.
 export const delivery_limits=pgTable('delivery_limits',{tenant_id:uuid('tenant_id').notNull(),window_start:timestamp('window_start',{withTimezone:true,mode:'date'}).notNull(),count:integer('count').notNull().default(0)});
+// Quota HTTP também é persistida, nunca contada em memória de uma réplica.
+export const request_limits=pgTable('request_limits',{tenant_id:uuid('tenant_id').notNull(),window_start:timestamp('window_start',{withTimezone:true,mode:'date'}).notNull(),count:integer('count').notNull()});

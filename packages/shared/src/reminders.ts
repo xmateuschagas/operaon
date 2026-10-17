@@ -52,6 +52,7 @@ export async function sendReminder(pool:Pool,payload:unknown,gateway:WhatsAppGat
     if(!lead.whatsapp_opt_in||lead.deleted_at||lead.etapa==='PERDIDO'||appointment.deleted_at||!['SCHEDULED','CONFIRMED'].includes(appointment.status)||appointment.start_time<=now){await db.query("UPDATE appointment_reminders SET status='CANCELLED' WHERE id=$1",[reminder.id]);return;}
     // Contador transacional compartilhado limita o agregado das réplicas.
     const window=new Date(Math.floor(now.getTime()/60000)*60000);
+    await db.query("DELETE FROM delivery_limits WHERE window_start<$1::timestamptz-INTERVAL '2 days'",[now]);
     const count=(await db.query<{count:number}>('INSERT INTO delivery_limits(tenant_id,window_start,count) VALUES($1,$2,1) ON CONFLICT(tenant_id,window_start) DO UPDATE SET count=delivery_limits.count+1 RETURNING count',[job.tenantId,window])).rows[0]!.count;
     if(count>30)throw new Error('WHATSAPP_RATE_LIMIT');
     attempted=true;const timezone=(await db.query<{timezone:string}>('SELECT timezone FROM tenants')).rows[0]!.timezone;

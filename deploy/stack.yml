@@ -1,0 +1,107 @@
+version: '3.8'
+# Artefato para operação posterior pelo Mateus. Este handoff não executa docker stack deploy.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: operaon
+      POSTGRES_USER: operaon_migrator
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets: [postgres_password]
+    volumes: [postgres_data:/var/lib/postgresql/data]
+    networks: [backend]
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U operaon_migrator -d operaon']
+      interval: 15s
+      retries: 5
+    deploy:
+      replicas: 1
+      placement: {constraints: ['node.labels.operaon.data == true']}
+      restart_policy: {condition: on-failure}
+  pgbouncer:
+    image: ${IMAGE_PREFIX:-ghcr.io/xmateuschagas/operaon}-pgbouncer:${IMAGE_TAG:-review}
+    secrets: [pgbouncer_users]
+    networks: [backend]
+    deploy: {replicas: 1, restart_policy: {condition: on-failure}}
+  api:
+    image: ${IMAGE_PREFIX:-ghcr.io/xmateuschagas/operaon}-api:${IMAGE_TAG:-review}
+    environment:
+      DATABASE_URL_FILE: /run/secrets/api_url
+      SESSION_SECRET_FILE: /run/secrets/session_secret
+      TOKEN_ENC_KEY_FILE: /run/secrets/token_enc_key
+      GOOGLE_CLIENT_ID_FILE: /run/secrets/google_client_id
+      GOOGLE_CLIENT_SECRET_FILE: /run/secrets/google_client_secret
+      ADMIN_EMAIL_FILE: /run/secrets/admin_email
+      ADMIN_WHATSAPP_FILE: /run/secrets/admin_whatsapp
+      NOTIFICATION_RECIPIENTS_JSON_FILE: /run/secrets/notification_recipients
+      WHATSAPP_API_TOKEN_FILE: /run/secrets/whatsapp_token
+      APP_URL: https://${APP_DOMAIN:-crm-staging.microtecon.com.br}
+      GOOGLE_REDIRECT_URI: https://${APP_DOMAIN:-crm-staging.microtecon.com.br}/api/auth/google/callback
+      WHATSAPP_API_URL: ${WHATSAPP_INTERNAL_URL:-http://whatsapp-bridge:8080}
+      WHATSAPP_INSTANCE: operaon
+      WORKSPACE_REQUESTS_PER_MINUTE: '300'
+    secrets: [api_url,session_secret,token_enc_key,google_client_id,google_client_secret,admin_email,admin_whatsapp,notification_recipients,whatsapp_token]
+    networks: [backend,frontend,egress,whatsapp]
+    deploy:
+      replicas: 2
+      update_config: {parallelism: 1, order: start-first, failure_action: rollback}
+      rollback_config: {parallelism: 1, order: stop-first}
+      restart_policy: {condition: on-failure}
+      resources: {limits: {memory: 512M}}
+  worker:
+    image: ${IMAGE_PREFIX:-ghcr.io/xmateuschagas/operaon}-worker:${IMAGE_TAG:-review}
+    environment:
+      WORKER_DATABASE_URL_FILE: /run/secrets/worker_url
+      QUEUE_DATABASE_URL_FILE: /run/secrets/broker_url
+      TOKEN_ENC_KEY_FILE: /run/secrets/token_enc_key
+      GOOGLE_CLIENT_ID_FILE: /run/secrets/google_client_id
+      GOOGLE_CLIENT_SECRET_FILE: /run/secrets/google_client_secret
+      WHATSAPP_API_TOKEN_FILE: /run/secrets/whatsapp_token
+      WHATSAPP_API_URL: ${WHATSAPP_INTERNAL_URL:-http://whatsapp-bridge:8080}
+      WHATSAPP_INSTANCE: operaon
+    secrets: [worker_url,broker_url,token_enc_key,google_client_id,google_client_secret,whatsapp_token]
+    networks: [backend,egress,whatsapp]
+    deploy:
+      replicas: 1
+      update_config: {parallelism: 1, order: stop-first, failure_action: rollback}
+      restart_policy: {condition: on-failure}
+      resources: {limits: {memory: 512M}}
+  web:
+    image: ${IMAGE_PREFIX:-ghcr.io/xmateuschagas/operaon}-web:${IMAGE_TAG:-review}
+    networks: [frontend,edge]
+    deploy:
+      replicas: 2
+      update_config: {parallelism: 1, order: start-first, failure_action: rollback}
+      labels:
+        - traefik.enable=true
+        - traefik.swarm.network=${TRAEFIK_NETWORK:-traefik_public}
+        - traefik.http.routers.${ROUTER_NAME:-operaon-staging}.rule=Host(`${APP_DOMAIN:-crm-staging.microtecon.com.br}`)
+        - traefik.http.routers.${ROUTER_NAME:-operaon-staging}.entrypoints=websecure
+        - traefik.http.routers.${ROUTER_NAME:-operaon-staging}.tls=true
+        - traefik.http.routers.${ROUTER_NAME:-operaon-staging}.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}
+        - traefik.http.routers.${ROUTER_NAME:-operaon-staging}.service=${ROUTER_NAME:-operaon-staging}
+        - traefik.http.services.${ROUTER_NAME:-operaon-staging}.loadbalancer.server.port=8080
+# Sem ports: somente o Traefik existente publica HTTPS. Banco, pool e WhatsApp ficam privados.
+networks:
+  backend: {driver: overlay, internal: true, attachable: true}
+  frontend: {driver: overlay, internal: true}
+  egress: {driver: overlay}
+  edge: {external: true, name: '${TRAEFIK_NETWORK:-traefik_public}'}
+  whatsapp: {external: true, name: '${WHATSAPP_NETWORK:-whatsapp_private}'}
+volumes:
+  postgres_data: {external: true, name: '${POSTGRES_VOLUME:-operaon_staging_postgres}'}
+# Prefixos distintos separam staging/produção. Criar e preencher secrets fora do Git.
+secrets:
+  postgres_password: {external: true, name: '${SECRET_PREFIX:-operaon_staging}_postgres_password'}
+  pgbouncer_users: {external: true, name: '${SECRET_PREFIX:-operaon_staging}_pgbouncer_users'}
+  api_url: {external: true, name: '${SECRET_PREFIX:-operaon_staging}_api_url'}
+  worker_url: {external: true, name: '${SECRET_PREFIX:-operaon_staging}_worker_url'}
+  broker_url: {external: true, name: '${SECRET_PREFIX:-operaon_staging}_broker_url'}
+  session_secret: {external: true, name: '${SECRET_PREFIX:-operaon_staging}_session_secret'}
+  token_enc_key: {external: true, name: '${SECRET_PREFIX:-operaon_staging}_token_enc_key'}
+  google_client_id: {external: true, name: '${SECRET_PREFIX:-operaon_staging}_google_client_id'}
+  google_client_secret: {external: true, name: '${SECRET_PREFIX:-operaon_staging}_google_client_secret'}
+  admin_email: {external: true, name: '${SECRET_PREFIX:-operaon_staging}_admin_email'}
+  admin_whatsapp: {external: true, name: '${SECRET_PREFIX:-operaon_staging}_admin_whatsapp'}
+  notification_recipients: {external: true, name: '${SECRET_PREFIX:-operaon_staging}_notification_recipients'}
+  whatsapp_token: {external: true, name: '${SECRET_PREFIX:-operaon_staging}_whatsapp_token'}
