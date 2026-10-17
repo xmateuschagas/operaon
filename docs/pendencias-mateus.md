@@ -1,5 +1,7 @@
 # Pendências do Mateus
 
+- WhatsApp: adaptar a stack existente ao contrato em docs/whatsapp.md, validar Idempotency-Key persistente após reinício e contexto reply_to. Configurar variáveis da ponte e destinatários locais explícitos em NOTIFICATION_RECIPIENTS_JSON. Testes usam mocks, nenhuma mensagem real foi enviada. Avisos sem configuração são registrados como indisponíveis, com aprovação pelo painel e convite copiável.
+
 Integrações reais serão configuradas somente em dev/staging. Nenhum segredo deve ser commitado. Não executar deploy na VPS durante o handoff.
 
 - Google: criar credenciais OAuth de desenvolvimento/staging, configurar redirect URI e consentimento de Calendar. A implementação usará adaptador real com testes simulados, sem exigir credenciais reais para CI.
@@ -8,5 +10,6 @@ Integrações reais serão configuradas somente em dev/staging. Nenhum segredo d
 - Worker: provisionar login que herde operaon_worker (que herda operaon_app), configurar WORKER_DATABASE_URL e QUEUE_DATABASE_URL em rede privada. API usa login que herda somente operaon_app. Outbox despacha para pg-boss; Google real e teste de staging continuam pendentes por falta de credenciais/ambiente autorizados.
 - WhatsApp: informar contrato e credenciais da stack existente, instância operaon e número central em variáveis locais ou secrets. Testes não enviarão mensagens reais.
 - Infraestrutura: disponibilizar secrets, domínio e redes na operação posterior. Sessão 8 entrega os artefatos e runbook; o deploy permanece manual pelo Mateus.
-- GitHub Actions: PR #4 / run 38985366166 falhou antes de executar passos em três tentativas. Verificar as duas anotações do job e eventual restrição de conta/runner. O conector expõe status mas não as anotações; navegador disponível sem login. Não houve merge da sessão 1 na dev. Verificações locais não substituem CI verde para merge.
+- GitHub Actions: bloqueio de cobrança resolvido pelo Mateus ao tornar o repositório público. PRs #4 a #8 integrados após CI hospedado verde; runner fixado em ubuntu-24.04. Sem pendência atual de cobrança.
 - Formulário: após configurar o workspace, um OWNER/ADMIN cria sua integração e guarda o token no backend do site. Enviar X-Event-Id estável nas reentregas e Authorization: Bearer. Não expor o token no frontend público; contrato em docs/importacao-captura.md. LEAD_FORM_TOKEN global só é usado no bootstrap explícito pelo admin da plataforma com papel local de gestor.
+
