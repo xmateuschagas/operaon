@@ -15,7 +15,7 @@ Handoff autônomo de 2026-10-16. Ler este arquivo, AGENTS.md, RFC, regras e plan
 | 6 | Integrada na dev | PR #9, CI 38989450345 verde. WhatsApp/lembretes e Notifier, 44 testes. Ponte real pendente de configuração/validação externa. |
 | 7a | Integrada na dev | PR #10, CI 38990191972 verde. Interface de execução e cache por workspace, 49 testes acumulados. |
 | 7b | Integrada na dev | PR #11, CI 38991441001 verde. Revisão, agenda, CSV, configurações, acessos e diretório restrito da plataforma. 52 testes e QA desktop/mobile. |
-| 8 | Validada localmente, preparando PR | Quotas/RLS multi-réplica, PgBouncer real, imagens sem root, secrets, workflows desabilitados e backup/restore. Sem deploy. |
+| 8 | Integrada na dev | PR #12, CI 38992986360 verde. 58 testes de aplicação, pooling real separado, imagens/config validadas e backup/restore local. Sem deploy. |
 
 ## Evidências e retomada técnica
 
@@ -31,7 +31,11 @@ Handoff autônomo de 2026-10-16. Ler este arquivo, AGENTS.md, RFC, regras e plan
 
 ## Evidências da sessão 8
 
-- pnpm lint e pnpm typecheck: exit 0. pnpm test: 57 aprovados e 1 teste de pooling separado ignorado nessa execução; novo teste de logs executado depois, 1 aprovado. pnpm test:pool: 1 aprovado contra PgBouncer real (24 transações, dois tenants, um backend). CI executará todos juntos no commit final.
+- pnpm lint e pnpm typecheck: exit 0. pnpm test: 57 aprovados e 1 teste de pooling separado ignorado nessa execução; novo teste de logs executado depois, 1 aprovado. pnpm test:pool: 1 aprovado contra PgBouncer real (24 transações, dois tenants, um backend). CI final do commit 51da187 confirmou 58 testes aprovados e o pooling separado aprovado (run 38992986360).
 - docker build: API, worker, web e PgBouncer aprovados; docker stack config validado. API/worker como node e web como nginx, todos com health/readiness 200 e proxy web /api/ready 200. URLs de smoke test só em loopback; logins de API/worker/broker sem superuser, BYPASSRLS ou CREATE no banco após bootstrap.
 - Backup custom e restore isolado: 1 workspace, 10 leads, 7 migrations. RLS: zero leads sem contexto, dez com contexto; restore-test recusou banco fora do sufixo _restore_test. Evidências locais ignoradas: .local/restore-validated.dump e .local/backup-db-names.txt.
-- Handoff não executou release.yml, publicação GHCR ou deploy. Configuração real/staging e decisões provisórias aguardam revisão do Mateus. Próximo passo: PR da sessão 8 para dev, CI verde e merge; atualizar este registro e abrir PR final dev -> main, sem merge.
+- Handoff não executou release.yml, publicação GHCR ou deploy. Configuração real/staging e decisões provisórias aguardam revisão do Mateus. PR #12 integrado na dev em e9f2a95 após CI verde. Implementação concluída; entrega final dev -> main reservada à revisão do Mateus, sem merge do agente.
+
+## Entrega final
+
+Todas as sessões do handoff estão integradas na dev após autoauditoria e CI verde. Aguardando revisão final do Mateus no PR dev -> main chamado OperaON MVP: revisão final do Mateus. A main permanece sem merge de código de aplicação pelo agente. Pendências externas e decisões provisórias estão em docs/pendencias-mateus.md e docs/decisoes.md; operação em docs/runbook.md. Nenhum deploy foi executado.
