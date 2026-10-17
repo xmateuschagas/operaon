@@ -1,0 +1,4 @@
+# Normaliza arquivos textuais para hashes de migration idênticos em Windows/Linux.
+* text=auto eol=lf
+*.jpeg binary
+*.png binary
