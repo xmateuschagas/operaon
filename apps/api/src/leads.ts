@@ -20,6 +20,7 @@ export async function findLead(db:PoolClient,actor:Actor,id:string,lock=false) {
 async function validateReferences(db:PoolClient,actor:Actor,owner:string,product?:string|null) {
   const member=(await db.query<{status:string;platform_status:string}>('SELECT m.status,p.platform_status FROM tenant_members m JOIN operaon_member_profiles() p ON p.user_id=m.user_id WHERE m.user_id=$1',[owner])).rows[0];
   if(!member||member.status!=='ACTIVE'||member.platform_status!=='ACTIVE') throw new DomainError('INVALID_OWNER',400,'Escolha um membro ativo do workspace');
+  await db.query('SELECT operaon_lock_member($1)',[owner]);
   if(product&&!(await db.query('SELECT id FROM products WHERE id=$1 AND ativo=true',[product])).rowCount) throw new DomainError('INVALID_PRODUCT',400,'Produto indisponível neste workspace');
 }
 function validateState(lead:{etapa:string;motivo_perda?:string|null;data_proximo_passo?:Date|null;descricao_proximo_passo?:string|null}) {

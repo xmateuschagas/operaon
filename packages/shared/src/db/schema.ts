@@ -180,3 +180,16 @@ export const audit_log = pgTable('audit_log', {
   dados: jsonb('dados'),
   created_at: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
 });
+
+// Estado OAuth global e efêmero, ligado à sessão do navegador pelo hash de state.
+export const oauth_states = pgTable('oauth_states', {
+  state_hash: text('state_hash').primaryKey(),verifier_enc:text('verifier_enc').notNull(),user_id:uuid('user_id'),
+  calendar:boolean('calendar').notNull().default(false),expires_at:timestamp('expires_at',{withTimezone:true,mode:'date'}).notNull(),used_at:timestamp('used_at',{withTimezone:true,mode:'date'}),
+});
+// Configuração e recibos isolados pelo tenant; constraints compostas e RLS estão na migration 003.
+export const webhook_integrations = pgTable('webhook_integrations', {
+  id:uuid('id').primaryKey().defaultRandom(),tenant_id:uuid('tenant_id').notNull(),kind:text('kind').notNull(),token_hash:text('token_hash').notNull(),active:boolean('active').notNull().default(true),created_at:timestamp('created_at',{withTimezone:true,mode:'date'}).notNull().defaultNow(),
+});
+export const webhook_receipts = pgTable('webhook_receipts', {
+  tenant_id:uuid('tenant_id').notNull(),integration_id:uuid('integration_id').notNull(),external_id:varchar('external_id',{length:200}).notNull(),result:jsonb('result'),created_at:timestamp('created_at',{withTimezone:true,mode:'date'}).notNull().defaultNow(),
+});

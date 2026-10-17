@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@tanstack/react-query": "5",
+    "csv-parse": "6",
     "drizzle-orm": "0.44",
     "fastify": "5",
     "pg": "8",
