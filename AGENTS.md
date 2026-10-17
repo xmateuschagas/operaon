@@ -1,14 +1,15 @@
 # Regras para agentes (Devin e outros)
 
 ## Fonte da verdade
-- `docs/rfc-002.md` e `docs/regras-de-negocio.md`. Em caso de conflito, pare e pergunte.
+- `docs/rfc-002.md`, `docs/regras-de-negocio.md` e `docs/decisoes.md` são a fonte da verdade. Em modo autônomo, ambiguidades são resolvidas pela opção mais simples e coerente com o RFC, registrada como "Decisão provisória do agente (revisar)".
 - Protótipo de referência visual: `docs/prototipo.md`.
 
 ## Forma de trabalhar
-- Sempre planejar antes de codar. Nunca implementar sem plano aprovado.
-- Uma sessão = um PR. Nunca fazer merge do próprio PR.
+- Sempre planejar antes de codar. Em modo autônomo, escrever plano e autoauditoria em docs/plans/ antes de implementar; autoauditoria substitui a aprovação entre etapas.
+- Em modo autônomo, cada sessão é um PR para a branch dev; o agente pode fazer merge na dev após CI verde e autoauditoria. A main só recebe merge do Mateus.
 - Não incluir nada fora do escopo da sessão. Ideias extras vão para a seção "Sugestões" do PR.
-- Se algo estiver ambíguo, perguntar em vez de decidir sozinho.
+- Fora do modo autônomo, se algo estiver ambíguo, perguntar em vez de decidir sozinho.
+- Retomar por docs/progresso.md. Dependências externas usam mocks/adaptadores e configuração real vai para docs/pendencias-mateus.md. Nunca acessar produção nem executar deploy na VPS. Não apagar branches, histórico ou PRs de outros autores.
 
 ## Código
 - TypeScript em modo strict em todo o projeto.
