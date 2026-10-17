@@ -1,0 +1,12 @@
+# Contexto de build nunca deve conter credenciais, checkout Git ou dependências locais.
+.git
+.env
+.env.*
+!.env.example
+node_modules
+**/node_modules
+**/dist
+.local
+coverage
+test-results
+playwright-report

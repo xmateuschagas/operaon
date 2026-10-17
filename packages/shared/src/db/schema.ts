@@ -31,6 +31,7 @@ export const users = pgTable('users', {
   email: varchar('email', { length: 180 }).notNull(),
   google_id: varchar('google_id', { length: 100 }),
   google_refresh_token_enc: text('google_refresh_token_enc'),
+  google_calendar_authorized: boolean('google_calendar_authorized').notNull().default(false),
   platform_status: platform_statusEnum('platform_status').notNull().default('ACTIVE'),
   created_at: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),

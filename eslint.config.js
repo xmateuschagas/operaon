@@ -3,7 +3,7 @@ import tseslint from 'typescript-eslint';
 
 // Regras TypeScript comuns a todos os serviços do monorepo.
 export default tseslint.config(
-  { ignores: ['**/dist/**', '**/node_modules/**', 'coverage/**'] },
+  { ignores: ['**/dist/**', '**/node_modules/**', 'coverage/**', '.local/**'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   { files: ['**/*.ts', '**/*.tsx'], rules: { '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }] } },
