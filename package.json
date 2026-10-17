@@ -1,0 +1,46 @@
+{
+  "name": "operaon",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "tsx --env-file-if-exists=.env scripts/dev.ts",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "build": "pnpm --filter @operaon/web build",
+    "db:migrate": "tsx --env-file-if-exists=.env packages/shared/src/db/cli.ts up",
+    "db:rollback": "tsx --env-file-if-exists=.env packages/shared/src/db/cli.ts down",
+    "db:seed": "tsx --env-file-if-exists=.env packages/shared/src/db/seed.ts"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "5",
+    "drizzle-orm": "0.44",
+    "fastify": "5",
+    "pg": "8",
+    "pg-boss": "10",
+    "react": "19",
+    "react-dom": "19",
+    "react-router-dom": "7",
+    "zod": "3"
+  },
+  "devDependencies": {
+    "@eslint/js": "9",
+    "@tailwindcss/vite": "4",
+    "@types/node": "22",
+    "@types/pg": "8",
+    "@types/react": "19",
+    "@types/react-dom": "19",
+    "@vitejs/plugin-react": "4",
+    "eslint": "9",
+    "tailwindcss": "4",
+    "tsx": "4",
+    "typescript": "5.9",
+    "typescript-eslint": "8",
+    "vite": "6",
+    "vitest": "3"
+  }
+}

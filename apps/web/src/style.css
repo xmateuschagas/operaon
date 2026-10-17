@@ -1,0 +1,5 @@
+@import "tailwindcss";
+
+/* Identidade inicial da referência visual, sem telas finais nesta sessão. */
+body { margin: 0; background: #f4f6fa; color: #0e1f3d; font-family: sans-serif; }
+main { padding: 2rem; }

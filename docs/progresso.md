@@ -7,7 +7,7 @@ Handoff autônomo de 2026-10-16. Ler este arquivo, AGENTS.md, RFC, regras e plan
 | Sessão | Status | Entrega / pendência |
 |---|---|---|
 | 0 | Concluída | PR #3 auditado contra D29 a D35 e merge documental autorizado; PRs #1 e #2 fechados com comentário solicitado. dev criada da main. Regras autônomas atualizadas. |
-| 1 | Em planejamento | Fundação, schema, RLS, JobQueue, testes e CI. |
+| 1 | Validada localmente, aguardando CI/PR | Monorepo, schema Drizzle/migration reversível, RLS forçada, FKs por tenant, JobQueue/pg-boss, seed e CI. Sete testes reais Postgres, lint, typecheck, build e smoke test passaram. |
 | 2 | Pendente | OAuth, workspaces, membros, convites e sessões. |
 | 3 | Pendente | Leads, interações, fila e funil. |
 | 4 | Pendente | Revisão, nutrição, CSV e captura. |
