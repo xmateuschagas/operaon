@@ -22,7 +22,7 @@ export async function migrate(pool: Pool, direction: 'up' | 'down' = 'up') {
       }
     } else {
       for (const file of files) {
-        const source = await readFile(`${folder}/${file}`, 'utf8');
+        const source = (await readFile(`${folder}/${file}`, 'utf8')).replaceAll('\r\n', '\n');
         const checksum = createHash('sha256').update(source).digest('hex');
         const existing = applied.rows.find((row) => row.name === file);
         if (existing && existing.checksum !== checksum) throw new Error(`Migration alterada: ${file}`);

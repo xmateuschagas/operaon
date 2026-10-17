@@ -24,3 +24,4 @@ Plano autoaprovado no handoff autônomo de 2026-10-16, após auditoria abaixo.
 - Lint, typecheck e build web passam. Smoke test: API /ready e web retornaram 200, worker iniciou. Adaptador pg-boss usa política stately para deduplicar trabalhos pendentes por chave.
 - Desvio técnico: dependências centralizadas no package.json raiz; pacotes apps mantêm links workspace. Lockfile fixa versões. Fastify inject substitui Supertest por evitar listener nos testes HTTP, sem dependência extra.
 - Evidência local usa Node 24.19 e Postgres 16 isolado; CI fixa Node 22. Nenhuma integração externa real foi acessada.
+- Validação adicional Linux identificou dependência de CRLF no checksum das migrations. Corrigido no runner com normalização para LF e .gitattributes. A migration SQL continua sem alterações após sua publicação inicial.
