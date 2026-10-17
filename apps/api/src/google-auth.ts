@@ -12,7 +12,7 @@ export class GoogleOAuth implements GoogleAuth {
   constructor(private readonly config: AuthConfig, private readonly request: typeof fetch = fetch) {}
   authorize(state: string, challenge: string, calendar: boolean) {
     const url = new URL('https://accounts.google.com/o/oauth2/v2/auth');
-    url.search = new URLSearchParams({client_id:this.config.GOOGLE_CLIENT_ID,redirect_uri:this.config.GOOGLE_REDIRECT_URI,response_type:'code',scope:`openid email profile${calendar?' https://www.googleapis.com/auth/calendar.app.created':''}`,state,code_challenge:challenge,code_challenge_method:'S256',access_type:'offline',include_granted_scopes:'true'}).toString();
+    url.search = new URLSearchParams({client_id:this.config.GOOGLE_CLIENT_ID,redirect_uri:this.config.GOOGLE_REDIRECT_URI,response_type:'code',scope:`openid email profile${calendar?' https://www.googleapis.com/auth/calendar.app.created https://www.googleapis.com/auth/calendar.calendarlist.readonly':''}`,state,code_challenge:challenge,code_challenge_method:'S256',access_type:'offline',include_granted_scopes:'true'}).toString();
     if(calendar) url.searchParams.set('prompt','consent');
     return url.toString();
   }
@@ -23,6 +23,6 @@ export class GoogleOAuth implements GoogleAuth {
     const info=await this.request('https://openidconnect.googleapis.com/v1/userinfo',{signal:AbortSignal.timeout(15000),headers:{authorization:`Bearer ${tokens.access_token}`}});
     if(!info.ok) throw new DomainError('GOOGLE_AUTH_FAILED',401);
     const identity=z.object({sub:z.string(),email:z.string().email(),email_verified:z.literal(true),name:z.string()}).parse(await info.json());
-    return {sub:identity.sub,email:identity.email.toLowerCase(),name:identity.name,refreshToken:tokens.refresh_token,calendarAuthorized:tokens.scope?.split(' ').includes('https://www.googleapis.com/auth/calendar.app.created') ?? false};
+    return {sub:identity.sub,email:identity.email.toLowerCase(),name:identity.name,refreshToken:tokens.refresh_token,calendarAuthorized:['https://www.googleapis.com/auth/calendar.app.created','https://www.googleapis.com/auth/calendar.calendarlist.readonly'].every((scope)=>tokens.scope?.split(' ').includes(scope))};
   }
 }

@@ -7,6 +7,7 @@
 ## Forma de trabalhar
 - Sempre planejar antes de codar. Em modo autônomo, escrever plano e autoauditoria em docs/plans/ antes de implementar; autoauditoria substitui a aprovação entre etapas.
 - Em modo autônomo, cada sessão é um PR para a branch dev; o agente pode fazer merge na dev após CI verde e autoauditoria. A main só recebe merge do Mateus.
+- Exceção autorizada pelo Mateus em 2026-10-16: se o CI voltar a falhar pela cobrança da conta, aceitar lint, typecheck e testes locais com a saída dos comandos colada no PR. Falhas de implementação continuam exigindo correção. Workflow usa ubuntu-24.04.
 - Não incluir nada fora do escopo da sessão. Ideias extras vão para a seção "Sugestões" do PR.
 - Fora do modo autônomo, se algo estiver ambíguo, perguntar em vez de decidir sozinho.
 - Retomar por docs/progresso.md. Dependências externas usam mocks/adaptadores e configuração real vai para docs/pendencias-mateus.md. Nunca acessar produção nem executar deploy na VPS. Não apagar branches, histórico ou PRs de outros autores.

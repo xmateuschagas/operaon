@@ -8,5 +8,6 @@ export async function api<T>(path:string,method='GET',body?:unknown):Promise<T> 
 }
 export interface SessionView {
   user:{id:string;nome:string;email:string};isPlatformAdmin:boolean;activeTenantId:string|null;
+  google?:{authorized:boolean;reauth_required:boolean};
   workspaces:{id:string;nome:string;timezone:string;lead_visibility:'proprios'|'compartilhado';status:string;member_status:string;role:'OWNER'|'ADMIN'|'MEMBER'}[];
 }
