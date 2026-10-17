@@ -94,6 +94,7 @@ export function registerAuth(app:FastifyInstance,pool:Pool,deps:AuthDependencies
   });
   // Papel de plataforma não concede acesso aos leads ou membros de um workspace.
   route('GET','/platform/workspaces',false,async(db,actor)=>{requirePlatform(actor);return (await db.query('SELECT * FROM operaon_platform_pending($1)',[actor.user_id])).rows;});
+  route('GET','/platform/users',false,async(db,actor)=>{requirePlatform(actor);return (await db.query('SELECT * FROM operaon_platform_users($1)',[actor.user_id])).rows;});
   route('POST','/platform/workspaces/:id/approve',false,async(db,actor,request)=>{requirePlatform(actor);const {id}=idParam.parse(request.params);await db.query('SELECT operaon_platform_approve($1,$2)',[actor.user_id,id]);return {ok:true};});
   route('POST','/platform/users/:id/block',false,async(db,actor,request)=>{requirePlatform(actor);const {id}=idParam.parse(request.params);if(id===actor.user_id) throw new DomainError('CANNOT_BLOCK_SELF',409);await db.query('SELECT operaon_platform_block($1,$2)',[actor.user_id,id]);return {ok:true};});
   route('PATCH','/workspace',true,async(db,actor,request)=>{

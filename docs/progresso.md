@@ -13,8 +13,8 @@ Handoff autônomo de 2026-10-16. Ler este arquivo, AGENTS.md, RFC, regras e plan
 | 4 | Integrada na dev | PR #7, CI 38988678940 verde. Revisão, nutrição, CSV e captura idempotente; 29 testes acumulados. |
 | 5 | Integrada na dev | PR #8, CI 38988883401 verde. Agenda por vínculo, Google de saída, outbox e RN-16; 37 testes acumulados. |
 | 6 | Integrada na dev | PR #9, CI 38989450345 verde. WhatsApp/lembretes e Notifier, 44 testes. Ponte real pendente de configuração/validação externa. |
-| 7a | Validada localmente, preparando PR | Shell responsivo, fila/funil, cadastro, contatos/histórico e cache por workspace. 49 testes acumulados; lint, typecheck e build passaram. QA desktop e 390x844 com OAuth fictício. |
-| 7b | Pendente | Frontend: revisão, agenda, acessos, captura e verificação visual. |
+| 7a | Integrada na dev | PR #10, CI 38990191972 verde. Interface de execução e cache por workspace, 49 testes acumulados. |
+| 7b | Validada localmente, preparando PR | Revisão, agenda, CSV, configurações e acessos completos. 52 testes, lint, typecheck e build aprovados. QA desktop/mobile com fixtures locais. Migration 006 para diretório mínimo da plataforma. |
 | 8 | Pendente | Artefatos operacionais, sem executar deploy. |
 
 ## Evidências e retomada técnica
@@ -28,6 +28,7 @@ Handoff autônomo de 2026-10-16. Ler este arquivo, AGENTS.md, RFC, regras e plan
 - Sessão 1 validada também em Linux/Node 22 no commit 87de9b4: install frozen, lint, typecheck, sete testes e build passaram. CI hospedado é um bloqueio distinto.
 
 - Atualização do Mateus: falha inicial causada por cobrança do repositório privado. Repositório público; novo push resolveu o CI. Workflow fixado em ubuntu-24.04. Exceção autorizada somente se repetir a mesma falha de cobrança: lint/typecheck/testes locais com saída colada no PR. Não foi necessário usar a exceção nos PRs #4 a #7.
+
 
 
 
