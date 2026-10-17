@@ -22,7 +22,7 @@ export async function findAppointment(db:PoolClient,actor:Actor,id:string) {
 export function registerAgenda(app:FastifyInstance,pool:Pool,deps:CrmDependencies) {
   const route=(method:'GET'|'POST'|'PATCH'|'DELETE',url:string,run:(db:PoolClient,actor:Actor,request:FastifyRequest)=>Promise<unknown>)=>secured(app,pool,deps,method,url,run);
   route('GET','/appointments',async(db,actor)=>{
-    const result=await db.query('SELECT a.*,l.nome AS lead_nome FROM appointments a JOIN leads l ON l.id=a.lead_id WHERE a.deleted_at IS NULL AND l.deleted_at IS NULL AND (l.user_id=$1 OR $2) ORDER BY a.start_time',[actor.user_id,seesAll(actor)]);return result.rows;
+    const result=await db.query("SELECT a.*,l.nome AS lead_nome,(SELECT COALESCE(json_agg(json_build_object('reminder_type',r.reminder_type,'status',r.status,'scheduled_for',r.scheduled_for)),'[]'::json) FROM appointment_reminders r WHERE r.appointment_id=a.id) AS reminders FROM appointments a JOIN leads l ON l.id=a.lead_id WHERE a.deleted_at IS NULL AND l.deleted_at IS NULL AND (l.user_id=$1 OR $2) ORDER BY a.start_time",[actor.user_id,seesAll(actor)]);return result.rows;
   });
   route('POST','/appointments',async(db,actor,request)=>{
     const body=appointmentCreate.parse(request.body);const lead=await findLead(db,actor,body.lead_id,true);if(lead.etapa==='PERDIDO')throw new DomainError('INVALID_STATE',409,'Lead perdido não recebe novos compromissos');
