@@ -9,8 +9,8 @@ Handoff autônomo de 2026-10-16. Ler este arquivo, AGENTS.md, RFC, regras e plan
 | 0 | Concluída | PR #3 auditado contra D29 a D35 e merge documental autorizado; PRs #1 e #2 fechados com comentário solicitado. dev criada da main. Regras autônomas atualizadas. |
 | 1 | Bloqueio externo de CI, PR #4 aberto | Monorepo, schema Drizzle/migration reversível, RLS forçada, FKs por tenant, JobQueue/pg-boss, seed e CI. Sete testes reais Postgres, lint, typecheck, build e smoke test passaram no Windows. CI GitHub falhou antes de iniciar qualquer passo em três tentativas, sem logs. Correção de checksum LF em 87de9b4; repetição Linux em andamento. Sem merge na dev. |
 | 2 | PR #5 aberto, sem merge | Branch criada da dev com dependência explícita da sessão 1. OAuth real com testes simulados, AES-GCM, sessões Postgres, workspaces, membros, convites, aprovação, bloqueios local/global e UI básica. 17 testes, lint, typecheck e build passaram; entrada/seletor verificados no navegador com fixture. Commit de8d508. |
-| 3 | Validada, preparando PR | CRUD/histórico, fila por fuso, funil, templates e visibilidade. Sete testes novos, total 24; lint/typecheck/build passaram. Branch sessao-03 criada da dev com dependência local da sessão 2. |
-| 4 | Pendente | Revisão, nutrição, CSV e captura. |
+| 3 | PR #6 aberto, sem merge | CRUD/histórico, fila por fuso, funil, templates e visibilidade. Sete testes novos, total 24; lint/typecheck/build passaram. Commit 20f0028, dependência explícita #5. |
+| 4 | Validada, preparando PR | Revisão, nutrição, CSV com prévia/relatório e captura idempotente. Cinco testes novos, total 29; lint/typecheck passaram. Migration 003 reversível e RLS. Dependência explícita #6; sem merge na dev. |
 | 5 | Pendente | Agenda e Google. |
 | 6 | Pendente | WhatsApp e lembretes. |
 | 7a | Pendente | Frontend: identidade, seletor, fila e funil. |
