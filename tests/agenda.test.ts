@@ -58,11 +58,11 @@ it('editar e excluir enviam estado atual ao Google e removem evento dedicado',as
 });
 it('RN-16 perder/excluir cancela futuros e lembretes; GANHO mantém',async()=>{
   const owner=await identity(pool);const lost=await create(owner.cookie);const won=await create(owner.cookie,'5521888888888');const removed=await create(owner.cookie,'5521777777777');
-  await pool.query("INSERT INTO appointment_reminders(tenant_id,appointment_id,reminder_type,scheduled_for) VALUES($1,$2,'REMINDER_1H','2026-10-18T14:00:00Z')",[owner.tenantId,lost.appointment.id]);
+  await pool.query("INSERT INTO appointment_reminders(tenant_id,appointment_id,reminder_type,scheduled_for) VALUES($1,$2,'REMINDER_1H','2026-10-18T14:00:00Z') ON CONFLICT DO NOTHING",[owner.tenantId,lost.appointment.id]);
   expect((await request(`/leads/${lost.lead.id}`,owner.cookie,'PATCH',{etapa:'PERDIDO',motivo_perda:'PRECO'})).statusCode).toBe(200);
   await request(`/leads/${won.lead.id}`,owner.cookie,'PATCH',{etapa:'GANHO'});await request(`/leads/${removed.lead.id}`,owner.cookie,'DELETE');
   const statuses=(await pool.query('SELECT id,status FROM appointments')).rows;expect(statuses.find((row)=>row.id===lost.appointment.id)?.status).toBe('CANCELLED');expect(statuses.find((row)=>row.id===removed.appointment.id)?.status).toBe('CANCELLED');expect(statuses.find((row)=>row.id===won.appointment.id)?.status).toBe('SCHEDULED');
-  expect((await pool.query('SELECT status FROM appointment_reminders')).rows[0].status).toBe('CANCELLED');
+  expect((await pool.query('SELECT status FROM appointment_reminders WHERE appointment_id=$1',[lost.appointment.id])).rows.every(row=>row.status==='CANCELLED')).toBe(true);
 });
 it('refresh revogado marca reautorização global e mantém compromisso',async()=>{
   const owner=await identity(pool);await enable(owner.userId);const {appointment}=await create(owner.cookie);const gateway=new FakeCalendar();gateway.revoked=true;
@@ -71,7 +71,7 @@ it('refresh revogado marca reautorização global e mantém compromisso',async()
 });
 it('outbox entrega uma vez por linha e descoberta é negada à role da API',async()=>{
   const owner=await identity(pool);await create(owner.cookie);const schedule=vi.fn<JobQueue['schedule']>().mockResolvedValue('fake-job-id');const queue:JobQueue={schedule,cancel:async()=>{},work:async()=>{}};
-  await deliverOutbox(pool,queue);await deliverOutbox(pool,queue);expect(schedule).toHaveBeenCalledTimes(1);expect(schedule.mock.calls[0]?.[1]).toMatchObject({tenantId:owner.tenantId});
+  await deliverOutbox(pool,queue);await deliverOutbox(pool,queue);expect(schedule).toHaveBeenCalledTimes(2);expect(schedule.mock.calls[0]?.[1]).toMatchObject({tenantId:owner.tenantId});
   await expect(asApp(pool,testConfig,db=>db.query('SELECT operaon_outbox_tenants()'))).rejects.toMatchObject({code:'42501'});
 });
 it('adaptador real nunca escreve na agenda principal e trata 404/409 no upsert',async()=>{

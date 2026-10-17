@@ -6,6 +6,7 @@ import { registerAuth, type AuthDependencies } from './auth-routes.js';
 import { registerCrm,type CrmDependencies } from './crm-routes.js';
 import { registerCapture } from './capture-routes.js';
 import { registerAgenda } from './agenda-routes.js';
+import { registerWhatsApp } from './whatsapp-routes.js';
 import { enqueueJob } from '@operaon/shared/jobs';
 
 // Factory separada do listener permite testar HTTP sem abrir porta.
@@ -30,7 +31,7 @@ export function buildApp(pool: Pool, auth?: AuthDependencies&Pick<CrmDependencie
       const status=(await db.query<{authorized:boolean;reauth_required:boolean}>('SELECT * FROM operaon_google_status($1)',[userId])).rows[0];
       if(status?.authorized&&!status.reauth_required)await enqueueJob(db,tenantId,'calendar_bootstrap',{userId});
     })} satisfies AuthDependencies;
-    registerAuth(app,pool,dependencies);registerCrm(app,pool,dependencies);registerCapture(app,pool,dependencies);registerAgenda(app,pool,dependencies);
+    registerAuth(app,pool,dependencies);registerCrm(app,pool,dependencies);registerCapture(app,pool,dependencies);registerAgenda(app,pool,dependencies);registerWhatsApp(app,pool,dependencies);
   }
   return app;
 }

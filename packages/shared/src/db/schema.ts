@@ -1,4 +1,4 @@
-import { pgTable, pgEnum, uuid, varchar, text, timestamp, boolean, numeric, jsonb } from 'drizzle-orm/pg-core';
+import { pgTable, pgEnum, uuid, varchar, text, timestamp, boolean, numeric, jsonb,integer } from 'drizzle-orm/pg-core';
 
 // Schema tipado; constraints, índices e RLS são aplicados pelas migrations SQL.
 export const platform_statusEnum = pgEnum('platform_status', ['ACTIVE', 'BLOCKED']);
@@ -158,6 +158,8 @@ export const appointment_reminders = pgTable('appointment_reminders', {
   job_id: varchar('job_id', { length: 150 }),
   sent_at: timestamp('sent_at', { withTimezone: true, mode: 'date' }),
   error_log: text('error_log'),
+  generation:integer('generation').notNull().default(1),
+  message_id:text('message_id'),
   created_at: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
 });
 
@@ -198,3 +200,5 @@ export const webhook_receipts = pgTable('webhook_receipts', {
 export const domain_jobs = pgTable('domain_jobs', {
   id:uuid('id').primaryKey().defaultRandom(),tenant_id:uuid('tenant_id').notNull(),kind:varchar('kind',{length:60}).notNull(),payload:jsonb('payload').notNull(),dedupe_key:text('dedupe_key').notNull(),delivered_at:timestamp('delivered_at',{withTimezone:true,mode:'date'}),created_at:timestamp('created_at',{withTimezone:true,mode:'date'}).notNull().defaultNow(),
 });
+// Janela de envio compartilhada entre réplicas; chave composta e RLS na migration 005.
+export const delivery_limits=pgTable('delivery_limits',{tenant_id:uuid('tenant_id').notNull(),window_start:timestamp('window_start',{withTimezone:true,mode:'date'}).notNull(),count:integer('count').notNull().default(0)});
