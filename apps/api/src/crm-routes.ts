@@ -7,6 +7,7 @@ import { DomainError } from '@operaon/shared/errors';
 import { getCookie,type AuthDependencies } from './auth-routes.js';
 import { withSession,requireManager,type Actor } from './session.js';
 import { listLeads,findLead,createLead,updateLead,addInteraction,audit,seesAll,type Lead } from './leads.js';
+import { cancelFutureAppointments } from './appointment-effects.js';
 
 export interface CrmDependencies extends AuthDependencies { now?:()=>Date }
 // Todos os módulos de negócio reutilizam esta borda transacional com sessão e RLS revalidadas.
@@ -21,9 +22,9 @@ export function registerCrm(app:FastifyInstance,pool:Pool,deps:CrmDependencies) 
   route('GET','/leads',async(db,actor)=>listLeads(db,actor));
   route('GET','/leads/:id',async(db,actor,request)=>findLead(db,actor,idFrom(request)));
   route('POST','/leads',async(db,actor,request)=>createLead(db,actor,request.body));
-  route('PATCH','/leads/:id',async(db,actor,request)=>updateLead(db,actor,idFrom(request),request.body));
+  route('PATCH','/leads/:id',async(db,actor,request)=>updateLead(db,actor,idFrom(request),request.body,deps.now?.()??new Date()));
   route('DELETE','/leads/:id',async(db,actor,request)=>{
-    const id=idFrom(request);await findLead(db,actor,id,true);await db.query('UPDATE leads SET deleted_at=$2 WHERE id=$1',[id,deps.now?.()??new Date()]);await audit(db,actor,'leads',id,'DELETE');return {ok:true};
+    const id=idFrom(request);await findLead(db,actor,id,true);const now=deps.now?.()??new Date();await db.query('UPDATE leads SET deleted_at=$2 WHERE id=$1',[id,now]);await cancelFutureAppointments(db,actor.active_tenant_id!,id,actor.user_id,now);await audit(db,actor,'leads',id,'DELETE');return {ok:true};
   });
   route('POST','/leads/:id/interactions',async(db,actor,request)=>addInteraction(db,actor,idFrom(request),request.body,deps.now?.()??new Date()));
   route('GET','/leads/:id/interactions',async(db,actor,request)=>{const id=idFrom(request);await findLead(db,actor,id);return (await db.query('SELECT * FROM lead_interactions WHERE lead_id=$1 ORDER BY created_at DESC',[id])).rows;});

@@ -32,6 +32,7 @@ export const users = pgTable('users', {
   google_id: varchar('google_id', { length: 100 }),
   google_refresh_token_enc: text('google_refresh_token_enc'),
   google_calendar_authorized: boolean('google_calendar_authorized').notNull().default(false),
+  google_reauth_required: boolean('google_reauth_required').notNull().default(false),
   platform_status: platform_statusEnum('platform_status').notNull().default('ACTIVE'),
   created_at: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
@@ -192,4 +193,8 @@ export const webhook_integrations = pgTable('webhook_integrations', {
 });
 export const webhook_receipts = pgTable('webhook_receipts', {
   tenant_id:uuid('tenant_id').notNull(),integration_id:uuid('integration_id').notNull(),external_id:varchar('external_id',{length:200}).notNull(),result:jsonb('result'),created_at:timestamp('created_at',{withTimezone:true,mode:'date'}).notNull().defaultNow(),
+});
+// Outbox de domínio permite reconstruir agendamentos após falhas entre banco e broker.
+export const domain_jobs = pgTable('domain_jobs', {
+  id:uuid('id').primaryKey().defaultRandom(),tenant_id:uuid('tenant_id').notNull(),kind:varchar('kind',{length:60}).notNull(),payload:jsonb('payload').notNull(),dedupe_key:text('dedupe_key').notNull(),delivered_at:timestamp('delivered_at',{withTimezone:true,mode:'date'}),created_at:timestamp('created_at',{withTimezone:true,mode:'date'}).notNull().defaultNow(),
 });

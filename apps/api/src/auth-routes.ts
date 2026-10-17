@@ -16,7 +16,7 @@ const idParam=z.object({id:uuidSchema});
 const tokenBody=z.object({token:z.string().min(32).max(200)}).strict();
 const roleSchema=z.enum(['OWNER','ADMIN','MEMBER']);
 const timezoneSchema=z.string().max(60).refine((zone)=>{try{new Intl.DateTimeFormat('pt-BR',{timeZone:zone});return true;}catch{return false;}},'Fuso horário inválido');
-export interface AuthDependencies { config: AuthConfig; google: GoogleAuth; notifier: Notifier }
+export interface AuthDependencies { config: AuthConfig; google: GoogleAuth; notifier: Notifier; onWorkspaceActivated?:(db:PoolClient,userId:string,tenantId:string)=>Promise<void> }
 
 export function registerAuth(app:FastifyInstance,pool:Pool,deps:AuthDependencies) {
   const {config,google,notifier}=deps;
@@ -58,14 +58,17 @@ export function registerAuth(app:FastifyInstance,pool:Pool,deps:AuthDependencies
       if(state.user_id && state.user_id!==person) throw new DomainError('GOOGLE_ACCOUNT_MISMATCH',403,'Use a mesma conta Google');
       if(state.calendar&&!identity.calendarAuthorized) throw new DomainError('CALENDAR_NOT_AUTHORIZED',403,'Autorize a agenda OperaON');
       if(identity.refreshToken || state.calendar) await db.query('SELECT operaon_save_google($1,$2,$3)',[person,identity.refreshToken?encryptToken(identity.refreshToken,config.TOKEN_ENC_KEY):null,state.calendar]);
-      const previous=getCookie(request);if(previous) await db.query('SELECT operaon_logout($1)',[hashToken(previous)]);
+      const previous=getCookie(request);
+      const oldSession=previous?(await db.query<{user_id:string;active_tenant_id:string|null}>('SELECT * FROM operaon_session($1)',[hashToken(previous)])).rows[0]:undefined;
+      if(previous)await db.query('SELECT operaon_logout($1)',[hashToken(previous)]);
       await db.query('SELECT operaon_create_session($1,$2,$3)',[person,hashToken(raw),new Date(Date.now()+config.SESSION_DAYS*86400000)]);
+      if(oldSession?.user_id===person&&oldSession.active_tenant_id){await db.query('SELECT operaon_choose_workspace($1,$2)',[hashToken(raw),oldSession.active_tenant_id]);await db.query("SELECT set_config('app.tenant_id',$1,true)",[oldSession.active_tenant_id]);await deps.onWorkspaceActivated?.(db,person,oldSession.active_tenant_id);}
     });
     reply.header('set-cookie',[cookie('operaon_session',raw,config,config.SESSION_DAYS*86400),cookie('operaon_oauth','',config,0)]);
     return reply.redirect(config.APP_URL);
   });
   // Descoberta global expõe somente vínculos da pessoa autenticada, sem dados de negócio.
-  route('GET','/session',false,async(db,actor)=>({user:{id:actor.user_id,email:actor.email,nome:actor.nome},activeTenantId:actor.active_tenant_id,isPlatformAdmin:actor.isPlatformAdmin,workspaces:(await db.query<Workspace>('SELECT * FROM operaon_workspaces($1)',[actor.user_id])).rows}));
+  route('GET','/session',false,async(db,actor)=>({user:{id:actor.user_id,email:actor.email,nome:actor.nome},activeTenantId:actor.active_tenant_id,isPlatformAdmin:actor.isPlatformAdmin,google:(await db.query('SELECT * FROM operaon_google_status($1)',[actor.user_id])).rows[0],workspaces:(await db.query<Workspace>('SELECT * FROM operaon_workspaces($1)',[actor.user_id])).rows}));
   route('POST','/logout',false,async(db,_actor,request,reply)=>{
     await db.query('SELECT operaon_logout($1)',[hashToken(getCookie(request)!)]);
     reply.header('set-cookie',cookie('operaon_session','',config,0));return {ok:true};
@@ -77,7 +80,8 @@ export function registerAuth(app:FastifyInstance,pool:Pool,deps:AuthDependencies
       if(!target||target.member_status==='BLOCKED'||target.status==='BLOCKED') throw new DomainError('ACCESS_REVOKED',403);
       if(target.member_status!=='ACTIVE'||target.status!=='ACTIVE') throw new DomainError('USER_PENDING_APPROVAL',403);
     }
-    await db.query('SELECT operaon_choose_workspace($1,$2)',[hashToken(getCookie(request)!),tenantId]);return {ok:true};
+    await db.query('SELECT operaon_choose_workspace($1,$2)',[hashToken(getCookie(request)!),tenantId]);
+    if(tenantId){await db.query("SELECT set_config('app.tenant_id',$1,true)",[tenantId]);await deps.onWorkspaceActivated?.(db,actor.user_id,tenantId);}return {ok:true};
   });
   // Onboarding cria workspace e OWNER pendentes em uma operação restrita e auditável.
   route('POST','/workspaces',false,async(db,actor,request)=>{

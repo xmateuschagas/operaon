@@ -5,6 +5,7 @@ import { typedDatabase } from '@operaon/shared/db/connection';
 import { leadCreateSchema,leadUpdateSchema,interactionSchema } from '@operaon/shared/crm';
 import { DomainError } from '@operaon/shared/errors';
 import type { Actor } from './session.js';
+import { cancelFutureAppointments } from './appointment-effects.js';
 
 export type Lead=typeof leads.$inferSelect;
 export const seesAll=(actor:Actor)=>actor.workspace?.role!=='MEMBER'||actor.workspace?.lead_visibility==='compartilhado';
@@ -48,7 +49,7 @@ export async function createLead(db:PoolClient,actor:Actor,input:unknown) {
   const result=(await db.query<Lead>(`INSERT INTO leads(${columns.join(',')}) VALUES(${values.map((_,i)=>`$${i+1}`).join(',')}) RETURNING *`,values)).rows[0]!;
   await audit(db,actor,'leads',result.id,'CREATE');return result;
 }
-export async function updateLead(db:PoolClient,actor:Actor,id:string,input:unknown) {
+export async function updateLead(db:PoolClient,actor:Actor,id:string,input:unknown,now=new Date()) {
   const body=leadUpdateSchema.parse(input);const old=await findLead(db,actor,id,true);
   if(body.user_id&&body.user_id!==old.user_id&&actor.workspace?.role==='MEMBER')throw new DomainError('FORBIDDEN',403);
   await validateReferences(db,actor,body.user_id??old.user_id,body.product_id===undefined?old.product_id:body.product_id);
@@ -57,6 +58,7 @@ export async function updateLead(db:PoolClient,actor:Actor,id:string,input:unkno
   const entries=Object.entries(body).filter(([,value])=>value!==undefined);
   if(!entries.length)return old;
   const result=(await db.query<Lead>(`UPDATE leads SET ${entries.map(([key],i)=>`${key}=$${i+2}`).join(',')} WHERE id=$1 RETURNING *`,[id,...entries.map(([,value])=>value)])).rows[0]!;
+  if(result.etapa==='PERDIDO')await cancelFutureAppointments(db,actor.active_tenant_id!,id,actor.user_id,now);
   await audit(db,actor,'leads',id,body.user_id&&body.user_id!==old.user_id?'ASSIGN':'UPDATE');return result;
 }
 
@@ -66,5 +68,6 @@ export async function addInteraction(db:PoolClient,actor:Actor,id:string,input:u
   validateState({...lead,etapa:stage,motivo_perda:body.motivo_perda??lead.motivo_perda,data_proximo_passo:body.data_proximo_passo?new Date(body.data_proximo_passo):null,descricao_proximo_passo:body.descricao_proximo_passo});
   await db.query('INSERT INTO lead_interactions(tenant_id,lead_id,user_id,canal,resumo,etapa_momento,proximo_passo_definido,data_agendada_passo,created_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)',[actor.active_tenant_id,id,actor.user_id,body.canal,body.resumo,stage,body.descricao_proximo_passo,body.data_proximo_passo,now]);
   await db.query('UPDATE leads SET etapa=$2,data_ultimo_contato=$3,data_proximo_passo=$4,descricao_proximo_passo=$5,motivo_perda=COALESCE($6,motivo_perda),motivo_perda_detalhe=COALESCE($7,motivo_perda_detalhe) WHERE id=$1',[id,stage,now,body.data_proximo_passo,body.descricao_proximo_passo,body.motivo_perda,body.motivo_perda_detalhe]);
+  if(stage==='PERDIDO')await cancelFutureAppointments(db,actor.active_tenant_id!,id,actor.user_id,now);
   await audit(db,actor,'leads',id,'INTERACTION');return findLead(db,actor,id);
 }
