@@ -1,0 +1,30 @@
+# D15: executar somente em dev/staging após login e seleção de workspace.
+# Substituir cookie pelo cookie opaco local, sem salvar credencial no Git.
+@base = http://127.0.0.1:3000
+@origin = http://127.0.0.1:5173
+@cookie = operaon_session=SUBSTITUIR_LOCALMENTE
+@lead = SUBSTITUIR_ID
+
+### Criar lead aberto (RN-01/RN-06)
+POST {{base}}/leads
+Origin: {{origin}}
+Cookie: {{cookie}}
+Content-Type: application/json
+
+{"nome":"Pessoa fictícia","telefone_e164":"5521999999999","origem":"Teste HTTP","necessidade_resumo":"Conhecer produto","data_proximo_passo":"2030-10-18T15:00:00Z","descricao_proximo_passo":"Primeiro contato"}
+
+### Fila: atraso antes de agora; hoje e sete dias no fuso do workspace (D8)
+GET {{base}}/queue
+Cookie: {{cookie}}
+
+### Interação atômica (RN-02) e histórico imutável (D22)
+POST {{base}}/leads/{{lead}}/interactions
+Origin: {{origin}}
+Cookie: {{cookie}}
+Content-Type: application/json
+
+{"canal":"Ligação","resumo":"Contato fictício","etapa":"QUALIFICADO","data_proximo_passo":"2030-10-19T15:00:00Z","descricao_proximo_passo":"Enviar proposta"}
+
+### Consultar histórico
+GET {{base}}/leads/{{lead}}/interactions
+Cookie: {{cookie}}

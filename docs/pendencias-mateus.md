@@ -15,3 +15,5 @@ Integrações reais serão configuradas somente em dev/staging. Nenhum segredo d
 - GitHub Actions: bloqueio de cobrança resolvido pelo Mateus ao tornar o repositório público. PRs #4 a #8 integrados após CI hospedado verde; runner fixado em ubuntu-24.04. Sem pendência atual de cobrança.
 - Formulário: após configurar o workspace, um OWNER/ADMIN cria sua integração e guarda o token no backend do site. Enviar X-Event-Id estável nas reentregas e Authorization: Bearer. Não expor o token no frontend público; contrato em docs/importacao-captura.md. LEAD_FORM_TOKEN global só é usado no bootstrap explícito pelo admin da plataforma com papel local de gestor.
 
+
+- Conferência D1 a D28: revisar docs/conferencia-d1-d28.md e decisões provisórias. Para D16, configurar repositório restic dedicado no servidor doméstico, secrets SSH/known_hosts/senha, BACKUP_HOST por ambiente e cron 03h America/Sao_Paulo; testar envio e recuperação em staging antes de habilitar operação. A sessão 09 não executa SSH externo/deploy. D20 admite segredo interno adicional; se habilitado, atualizar a ponte para enviar X-WhatsApp-Webhook-Token além do Bearer local.

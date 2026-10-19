@@ -1,0 +1,33 @@
+# Usar ponte simulada e telefone fictício; não habilitar envio real para testar esta coleção.
+@base = http://127.0.0.1:3000
+@integration = SUBSTITUIR_ID
+@token = SUBSTITUIR_LOCALMENTE
+@internalToken = SUBSTITUIR_SE_CONFIGURADO
+@message = ID_DA_MENSAGEM_SENT_NO_AMBIENTE_DE_TESTE
+
+### Confirmar (RN-10): exige vínculo pelo reply_to, telefone e integração do workspace
+POST {{base}}/webhooks/whatsapp/{{integration}}
+Authorization: Bearer {{token}}
+X-WhatsApp-Webhook-Token: {{internalToken}}
+X-Event-Id: resposta-ficticia-001
+Content-Type: application/json
+
+{"phone":"5521999999999","text":"1","reply_to":"{{message}}"}
+
+### Remarcar (D24): GANHO permanece GANHO e o responsável é avisado
+POST {{base}}/webhooks/whatsapp/{{integration}}
+Authorization: Bearer {{token}}
+X-WhatsApp-Webhook-Token: {{internalToken}}
+X-Event-Id: resposta-ficticia-002
+Content-Type: application/json
+
+{"phone":"5521999999999","text":"2","reply_to":"{{message}}"}
+
+### Opt-out (RN-09); repetir X-Event-Id não repete efeito
+POST {{base}}/webhooks/whatsapp/{{integration}}
+Authorization: Bearer {{token}}
+X-WhatsApp-Webhook-Token: {{internalToken}}
+X-Event-Id: resposta-ficticia-003
+Content-Type: application/json
+
+{"phone":"5521999999999","text":"SAIR"}

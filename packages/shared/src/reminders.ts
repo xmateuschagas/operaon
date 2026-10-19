@@ -68,3 +68,21 @@ export async function registerReminderJobs(queue:JobQueue,pool:Pool,gateway:What
   await queue.work('reconcile_reminders',(payload)=>reconcileReminders(pool,queue,payload));
   await queue.work('send_reminder',(payload)=>sendReminder(pool,payload,gateway));
 }
+
+// No boot, aplicar D26 antes de registrar consumidores: não disparar lembretes antigos acumulados.
+export async function recoverReminders(pool:Pool,now=new Date()) {
+  const discovery=await pool.connect();let tenants:string[];
+  try {
+    await discovery.query('BEGIN');await discovery.query('SET LOCAL ROLE operaon_worker');
+    tenants=(await discovery.query<{id:string}>('SELECT operaon_reminder_tenants() AS id')).rows.map(row=>row.id);
+    await discovery.query('COMMIT');
+  }catch(error){await discovery.query('ROLLBACK');throw error;}finally{discovery.release();}
+  for(const tenantId of tenants)await withTenant(pool,tenantId,async(db)=>{
+    const appointments=await db.query<{id:string;start_time:Date;status:string;deleted_at:Date|null}>("SELECT a.* FROM appointments a WHERE EXISTS(SELECT 1 FROM appointment_reminders r WHERE r.appointment_id=a.id AND r.status='PENDING') ORDER BY a.id FOR UPDATE OF a");
+    for(const item of appointments.rows){
+      // Mesma ordem compromisso -> lembrete das mutações; geração invalida jobs já persistidos.
+      await db.query("UPDATE appointment_reminders SET status='CANCELLED',generation=generation+1,error_log='vencido durante indisponibilidade' WHERE appointment_id=$1 AND status='PENDING' AND (scheduled_for<$2 AND reminder_type<>'INSTANT_CONFIRMATION' OR $3::timestamptz<=$2 OR $4 OR $5)",[item.id,now,item.start_time,item.deleted_at!==null,!['SCHEDULED','CONFIRMED'].includes(item.status)]);
+      await enqueueJob(db,tenantId,'reconcile_reminders',{appointmentId:item.id});
+    }
+  });
+}

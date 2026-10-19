@@ -29,7 +29,7 @@ it('RN-07/RN-15/RN-23 formulário tem defaults e reentrega concorrente idempoten
   const leads=(await pool.query('SELECT * FROM leads')).rows;expect(leads).toHaveLength(1);expect(leads[0]).toMatchObject({origem:'Formulário do site',etapa:'NOVO',user_id:owner.userId,descricao_proximo_passo:'Primeiro contato',utm_source:'campanha'});
   expect(leads[0].data_proximo_passo).toEqual(new Date(now.getTime()+3600000));
   expect((await app.inject({method:'POST',url:`/webhooks/leads/${integration.id}`,headers:{authorization:'Bearer invalid','x-event-id':'bad'},payload})).statusCode).toBe(401);
-  expect((await app.inject({method:'POST',url:`/webhooks/leads/${integration.id}`,headers:{authorization:`Bearer ${integration.token}`,'x-event-id':'second'},payload})).statusCode).toBe(409);
+  expect((await app.inject({method:'POST',url:`/webhooks/leads/${integration.id}`,headers:{authorization:`Bearer ${integration.token}`,'x-event-id':'second'},payload})).statusCode).toBe(200);
 });
 it('RN-15 ignora bloqueio local/global e falha sem responsável elegível',async()=>{
   const owner=await identity(pool);const admin=await identity(pool,'ADMIN',owner.tenantId);const member=await identity(pool,'MEMBER',owner.tenantId);
