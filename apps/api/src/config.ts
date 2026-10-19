@@ -9,5 +9,7 @@ export const configSchema = z.object({
   GOOGLE_CLIENT_ID: z.string().min(1), GOOGLE_CLIENT_SECRET: z.string().min(1), GOOGLE_REDIRECT_URI: z.string().url(),
   SESSION_DAYS: z.coerce.number().int().positive().default(7), INVITATION_DAYS: z.coerce.number().int().positive().default(7),
   WORKSPACE_REQUESTS_PER_MINUTE:z.coerce.number().int().positive().max(10000).default(300),
+  WHATSAPP_WEBHOOK_TOKEN:z.string().min(32).optional(),
+  TZ_DEFAULT:z.string().default('America/Sao_Paulo').refine(zone=>{try{new Intl.DateTimeFormat('pt-BR',{timeZone:zone});return true;}catch{return false;}},'Fuso padrão inválido'),
 });
 export type AuthConfig = z.infer<typeof configSchema>;

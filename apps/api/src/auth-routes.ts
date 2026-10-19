@@ -90,6 +90,8 @@ export function registerAuth(app:FastifyInstance,pool:Pool,deps:AuthDependencies
     const {nome}=z.object({nome:z.string().trim().min(1).max(150)}).strict().parse(request.body);
     const id=(await db.query<{id:string}>('SELECT operaon_request_workspace($1,$2) AS id',[actor.user_id,nome])).rows[0]!.id;
     await db.query("SELECT set_config('app.tenant_id',$1,true)",[id]);
+    // D21: default só participa da criação; configurações posteriores pertencem ao workspace.
+    await db.query('UPDATE tenants SET timezone=$2 WHERE id=$1',[id,config.TZ_DEFAULT]);
     const token=opaqueToken();await db.query("INSERT INTO approval_tokens(tenant_id,token_hash,expires_at) VALUES($1,$2,NOW()+INTERVAL '24 hours')",[id,hashToken(token)]);
     await notifier.notify({kind:'approval',tenantId:id,userId:actor.user_id,link:`${config.APP_URL}/aprovar?token=${token}`,message:'Novo workspace aguardando aprovação'});
     return {id,status:'PENDING'};

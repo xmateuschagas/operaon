@@ -50,9 +50,22 @@ export function registerCapture(app:FastifyInstance,pool:Pool,deps:CrmDependenci
       if(!authorized.rowCount)throw new DomainError('INVALID_INTEGRATION',401,'Integração não autorizada');
       const receipt=await db.query('INSERT INTO webhook_receipts(tenant_id,integration_id,external_id) VALUES($1,$2,$3) ON CONFLICT DO NOTHING RETURNING external_id',[tenant,id,external]);
       if(!receipt.rowCount)return (await db.query<{result:{status:number;body:Record<string,unknown>}}>('SELECT result FROM webhook_receipts WHERE integration_id=$1 AND external_id=$2',[id,external])).rows[0]!.result;
-      const actor=await captureActor(db,tenant);
-      const lead=await createLead(db,actor,{...body,origem:'Formulário do site',etapa:'NOVO',user_id:actor.user_id,data_proximo_passo:new Date(now().getTime()+3600000).toISOString(),descricao_proximo_passo:'Primeiro contato'});
-      const result={status:201,body:{id:lead.id}};await db.query('UPDATE webhook_receipts SET result=$3 WHERE integration_id=$1 AND external_id=$2',[id,external,JSON.stringify(result)]);return result;
+      // Serializar a chave natural cobre eventos distintos concorrentes sem depender do responsável atual.
+      await db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',[`${tenant}:${body.telefone_e164}`]);
+      let lead=(await db.query<{id:string}>('SELECT id FROM leads WHERE telefone_e164=$1 AND deleted_at IS NULL',[body.telefone_e164])).rows[0];
+      let status=200;
+      if(!lead){
+        const actor=await captureActor(db,tenant);
+        // Uma criação manual pode competir sem advisory lock; savepoint recupera apenas duplicidade conhecida.
+        await db.query('SAVEPOINT form_lead');
+        try {lead=await createLead(db,actor,{...body,origem:'Formulário do site',etapa:'NOVO',user_id:actor.user_id,data_proximo_passo:new Date(now().getTime()+3600000).toISOString(),descricao_proximo_passo:'Primeiro contato'});status=201;await db.query('RELEASE SAVEPOINT form_lead');}
+        catch(error){
+          await db.query('ROLLBACK TO SAVEPOINT form_lead');
+          if(!(error instanceof DomainError&&error.code==='DUPLICATE_PHONE')&&!(error instanceof Error&&'code' in error&&error.code==='23505'&&'constraint' in error&&error.constraint==='uq_leads_telefone'))throw error;
+          lead=(await db.query<{id:string}>('SELECT id FROM leads WHERE telefone_e164=$1 AND deleted_at IS NULL',[body.telefone_e164])).rows[0];if(!lead)throw error;
+        }
+      }
+      const result={status,body:{id:lead.id}};await db.query('UPDATE webhook_receipts SET result=$3 WHERE integration_id=$1 AND external_id=$2',[id,external,JSON.stringify(result)]);return result;
     });
     return reply.code(result.status).send(result.body);
   });

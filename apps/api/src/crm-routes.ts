@@ -33,8 +33,8 @@ export function registerCrm(app:FastifyInstance,pool:Pool,deps:CrmDependencies) 
 
   // Fronteiras locais convertidas em instantes UTC evitam confundir ontem/hoje à meia-noite.
   route('GET','/queue',async(db,actor)=>{
-    const query=await db.query<Lead&{bucket:'atrasados'|'hoje'|'proximos'}>(`WITH limits AS (SELECT (($1::timestamptz AT TIME ZONE $2)::date::timestamp AT TIME ZONE $2) AS today,((($1::timestamptz AT TIME ZONE $2)::date+1)::timestamp AT TIME ZONE $2) AS tomorrow,((($1::timestamptz AT TIME ZONE $2)::date+8)::timestamp AT TIME ZONE $2) AS last_day)
-      SELECT l.*,CASE WHEN l.data_proximo_passo<limits.today THEN 'atrasados' WHEN l.data_proximo_passo<limits.tomorrow THEN 'hoje' ELSE 'proximos' END AS bucket FROM leads l,limits WHERE l.deleted_at IS NULL AND l.etapa NOT IN ('GANHO','PERDIDO') AND (l.user_id=$3 OR $4) AND l.data_proximo_passo<limits.last_day ORDER BY l.data_proximo_passo`,[deps.now?.()??new Date(),actor.workspace!.timezone,actor.user_id,seesAll(actor)]);
+    const query=await db.query<Lead&{bucket:'atrasados'|'hoje'|'proximos'}>(`WITH limits AS (SELECT ((($1::timestamptz AT TIME ZONE $2)::date+1)::timestamp AT TIME ZONE $2) AS tomorrow,((($1::timestamptz AT TIME ZONE $2)::date+8)::timestamp AT TIME ZONE $2) AS last_day)
+      SELECT l.*,CASE WHEN l.data_proximo_passo<$1::timestamptz THEN 'atrasados' WHEN l.data_proximo_passo<limits.tomorrow THEN 'hoje' ELSE 'proximos' END AS bucket FROM leads l,limits WHERE l.deleted_at IS NULL AND l.etapa NOT IN ('GANHO','PERDIDO') AND (l.user_id=$3 OR $4) AND l.data_proximo_passo<limits.last_day ORDER BY l.data_proximo_passo`,[deps.now?.()??new Date(),actor.workspace!.timezone,actor.user_id,seesAll(actor)]);
     const counts={atrasados:0,hoje:0,proximos:0};for(const row of query.rows)counts[row.bucket]++;return {items:query.rows,counts};
   });
   route('GET','/funnel',async(db,actor)=>{

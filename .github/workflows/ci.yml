@@ -40,3 +40,7 @@ jobs:
           docker build -f apps/worker/Dockerfile -t operaon-worker:ci .
           docker build -f apps/web/Dockerfile -t operaon-web:ci .
           docker stack config -c deploy/stack.yml > /dev/null
+      - name: Validar backup criptografado sem acesso externo
+        run: |
+          docker build -f deploy/backup.Dockerfile -t operaon-backup:ci .
+          docker run --rm --entrypoint sh -v "$PWD/deploy:/tests:ro" operaon-backup:ci /tests/test-backup.sh

@@ -22,6 +22,12 @@ export async function captureActor(db:PoolClient,tenantId:string):Promise<Actor>
 // Arquivo limitado no tamanho e em linhas; o servidor revalida na importação efetiva.
 export const csvBody=z.object({csv:z.string().min(1).max(1000000)}).strict();
 export interface CsvRow {line:number;status:'valid'|'duplicate'|'error';data?:Record<string,unknown>;message?:string}
+// Consentimento nunca é inferido: valor vazio é falso, valores desconhecidos invalidam a linha.
+const csvOptIn=z.string().trim().toLowerCase().default('').transform((value,context)=>{
+  if(['true','1','sim'].includes(value))return true;
+  if(['','false','0','nao','não'].includes(value))return false;
+  context.addIssue({code:z.ZodIssueCode.custom,message:'opt_in deve ser sim/não, true/false ou 1/0'});return z.NEVER;
+});
 export async function previewCsv(db:PoolClient,actor:Actor,csv:string,now:Date):Promise<CsvRow[]> {
   let records:Record<string,string>[];
   try {
@@ -33,7 +39,7 @@ export async function previewCsv(db:PoolClient,actor:Actor,csv:string,now:Date):
   for(const [index,record] of records.entries()) {
     try {
       const owner=await responsible(db,record.responsavel_email?.trim()||undefined);
-      const data=leadCreateSchema.parse({nome:record.nome,telefone_e164:record.telefone_e164??record.telefone,empresa:record.empresa||undefined,email:record.email||undefined,origem:record.origem||'Importação CSV',necessidade_resumo:record.necessidade||record.necessidade_resumo||'Não informada',user_id:owner.user_id,data_proximo_passo:new Date(now.getTime()+3600000).toISOString(),descricao_proximo_passo:'Primeiro contato',etapa:'NOVO',whatsapp_opt_in:false});
+      const data=leadCreateSchema.parse({nome:record.nome,telefone_e164:record.telefone_e164??record.telefone,empresa:record.empresa||undefined,email:record.email||undefined,origem:record.origem||'Importação CSV',necessidade_resumo:record.necessidade||record.necessidade_resumo||'Não informada',user_id:owner.user_id,data_proximo_passo:new Date(now.getTime()+3600000).toISOString(),descricao_proximo_passo:'Primeiro contato',etapa:'NOVO',whatsapp_opt_in:csvOptIn.parse(record.opt_in)});
       const duplicate=seen.has(data.telefone_e164)||(await db.query('SELECT id FROM leads WHERE telefone_e164=$1 AND deleted_at IS NULL',[data.telefone_e164])).rowCount!==0;
       seen.add(data.telefone_e164);result.push({line:index+2,status:duplicate?'duplicate':'valid',data,message:duplicate?'Telefone já cadastrado ou repetido no arquivo':undefined});
     } catch(error) {
@@ -58,4 +64,4 @@ export async function importCsv(db:PoolClient,actor:Actor,csv:string,now:Date) {
   return {created:rows.filter((row)=>row.status==='valid').length,duplicates:rows.filter((row)=>row.status==='duplicate').length,errors:rows.filter((row)=>row.status==='error').length,rows};
 }
 // Formulário não pode definir tenant, responsável, etapa ou origem arbitrariamente.
-export const formSchema=z.object({nome:z.string().trim().min(1).max(150),telefone_e164:z.string().transform(normalizePhone).refine(Boolean,'Informe telefone com DDI'),empresa:z.string().max(150).optional(),email:z.string().email().optional(),necessidade_resumo:z.string().trim().min(1),utm_source:z.string().max(120).optional(),utm_campaign:z.string().max(120).optional(),product_id:z.string().uuid().optional(),whatsapp_opt_in:z.boolean().default(false)}).strict();
+export const formSchema=z.object({nome:z.string().trim().min(1).max(150),telefone_e164:z.string().transform(normalizePhone).refine(Boolean,'Informe telefone com DDI'),empresa:z.string().max(150).optional(),email:z.string().email().optional(),necessidade_resumo:z.string().trim().optional().transform(value=>value||'Não informada'),utm_source:z.string().max(120).optional(),utm_campaign:z.string().max(120).optional(),product_id:z.string().uuid().optional(),whatsapp_opt_in:z.boolean().default(false)}).strict();

@@ -140,6 +140,10 @@ export const appointments = pgTable('appointments', {
   end_time: timestamp('end_time', { withTimezone: true, mode: 'date' }).notNull(),
   google_event_id: varchar('google_event_id', { length: 255 }),
   sync_status: sync_statusEnum('sync_status').notNull().default('PENDING'),
+  sync_generation:integer('sync_generation').notNull().default(0),
+  sync_attempts:integer('sync_attempts').notNull().default(0),
+  sync_started_at:timestamp('sync_started_at',{withTimezone:true,mode:'date'}),
+  sync_next_attempt_at:timestamp('sync_next_attempt_at',{withTimezone:true,mode:'date'}),
   status: appointment_statusEnum('status').notNull().default('SCHEDULED'),
   confirmacao_cliente: client_confirmationEnum('confirmacao_cliente').notNull().default('AGUARDANDO'),
   deleted_at: timestamp('deleted_at', { withTimezone: true, mode: 'date' }),
@@ -198,7 +202,7 @@ export const webhook_receipts = pgTable('webhook_receipts', {
 });
 // Outbox de domínio permite reconstruir agendamentos após falhas entre banco e broker.
 export const domain_jobs = pgTable('domain_jobs', {
-  id:uuid('id').primaryKey().defaultRandom(),tenant_id:uuid('tenant_id').notNull(),kind:varchar('kind',{length:60}).notNull(),payload:jsonb('payload').notNull(),dedupe_key:text('dedupe_key').notNull(),delivered_at:timestamp('delivered_at',{withTimezone:true,mode:'date'}),created_at:timestamp('created_at',{withTimezone:true,mode:'date'}).notNull().defaultNow(),
+  id:uuid('id').primaryKey().defaultRandom(),tenant_id:uuid('tenant_id').notNull(),kind:varchar('kind',{length:60}).notNull(),payload:jsonb('payload').notNull(),dedupe_key:text('dedupe_key').notNull(),available_at:timestamp('available_at',{withTimezone:true,mode:'date'}),delivered_at:timestamp('delivered_at',{withTimezone:true,mode:'date'}),created_at:timestamp('created_at',{withTimezone:true,mode:'date'}).notNull().defaultNow(),
 });
 // Janela de envio compartilhada entre réplicas; chave composta e RLS na migration 005.
 export const delivery_limits=pgTable('delivery_limits',{tenant_id:uuid('tenant_id').notNull(),window_start:timestamp('window_start',{withTimezone:true,mode:'date'}).notNull(),count:integer('count').notNull().default(0)});

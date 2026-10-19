@@ -58,8 +58,22 @@ Invalid_grant marca google_reauth_required na pessoa. Pedir reconexão pelo bot�
 
 ## Backup e restore
 
-deploy/backup.sh usa pg_dump custom, umask 077 e PGPASSFILE montado como secret. deploy/backup.cron.example agenda diariamente às 03h UTC no host/container de backup, sem executar agendamento neste handoff. Usar cliente PG16, diretório privado e cópia externa criptografada com retenção definida pelo Mateus. O script não apaga backups antigos. Um backup só é considerado recuperável após restore testado, não apenas pg_restore --list.
+deploy/backup.sh usa pg_dump custom, umask 077 e PGPASSFILE montado como secret. deploy/backup.cron.example agenda deploy/backup-run.sh diariamente às 03h America/Sao_Paulo em agendador com CRON_TZ (como cronie), sem instalar cron neste handoff. A imagem deploy/backup.Dockerfile inclui cliente PG16, restic e SSH. Dumps locais não são apagados automaticamente. Um backup só é considerado recuperável após restore testado, não apenas pg_restore --list.
 
 deploy/restore-test.sh recusa banco que não termine em _restore_test e usa pg_restore --clean --if-exists --no-owner --exit-on-error. Preparar banco vazio isolado e roles antes de restaurar, sem apontar para produção. Após restore, conferir workspaces/leads, migrations/checksums e consultas sob role/RLS. Não iniciar workers contra um restore que contenha credenciais reais ou jobs antigos; usar rede isolada e desabilitar integrações. A credencial de backup e dumps são dados privados, nunca artefatos públicos do CI.
 
 As evidências locais de round-trip e pooling desta entrega são registradas em docs/progresso.md. Staging real, restore de dados reais e política externa de retenção continuam sob responsabilidade do Mateus.
+
+## Backup externo D16/D27
+
+A sessão 09 entrega deploy/backup-run.sh e backup-offsite.sh. Configurar PGHOST/PGUSER/PGDATABASE/PGPASSFILE, BACKUP_DIR privado, BACKUP_HOST estável por ambiente, RESTIC_REPOSITORY=sftp:usuario@servidor-domestico:/repositorio-dedicado, RESTIC_PASSWORD_FILE, BACKUP_SSH_KEY e BACKUP_KNOWN_HOSTS. Montar os arquivos como secrets com permissões restritas; conferir fingerprint do servidor por canal confiável. Caminhos SSH devem ser absolutos, sem espaços ou metacaracteres. Inicializar previamente o repositório restic criptografado como operador autorizado. Não copiar chave AES junto do dump; armazená-la em cofre separado.
+
+A cópia usa SFTP sobre SSH com BatchMode e StrictHostKeyChecking. Snapshot recebe tag operaon-db e host de ambiente. Retenção usa forget --keep-daily 7 --keep-weekly 4 --group-by host,tags restrito ao host/tag; os conjuntos podem se sobrepor. Não há prune automático nem exclusão de snapshots alheios. Fazer manutenção de espaço e prune revisado no repositório dedicado. Restic é ferramenta operacional aprovada em D27, sem dependência nova na aplicação. Referência: [backend SFTP oficial](https://restic.readthedocs.io/en/stable/030_preparing_a_new_repo.html#sftp).
+
+Para recuperar: restic restore latest --host AMBIENTE --tag operaon-db --target DIRETORIO_PRIVADO. O snapshot contém operaon.dump; em ambiente isolado, aplicar deploy/restore-test.sh nesse arquivo com PGDATABASE terminado em _restore_test e verificar migrations, RLS e contagens. Nunca iniciar worker de restore com integrações reais. Senha do restic e chave AES precisam de cópias seguras independentes; perdê-las impede recuperação. Um lock de backup após queda deve ser inspecionado antes de removê-lo.
+
+Teste reproduzível sem SSH externo: docker build -f deploy/backup.Dockerfile -t operaon-backup:test . e docker run --rm --entrypoint sh -v "$PWD/deploy:/tests:ro" operaon-backup:test /tests/test-backup.sh. Usa restic real, dump fictício e repositório local descartável; verifica restore e interrupção após falha do dump. O restore de Postgres real permanece evidência da sessão 8. Habilitar cron, confirmar envio doméstico e testar recuperação com dados de staging são pendências do Mateus.
+
+## Retry Google D11/D12
+
+Falhas comuns usam atraso persistido de 1min, 5min, 15min, 1h e depois 6h, limitado a 24h desde a primeira falha. Ao vencer a janela, sync_status vira ERROR e agenda oferece Reprocessar Google. Edição/cancelamento/retry manual incrementam geração e reiniciam janela; jobs da geração anterior são ignorados. Invalid_grant ou falta de autorização permanecem PENDING para reconexão conforme D12; reconectar e reprocessar os compromissos. Nenhum polling ou importação do Google foi acrescentado.

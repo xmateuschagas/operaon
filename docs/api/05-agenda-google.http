@@ -1,0 +1,30 @@
+@base = http://127.0.0.1:3000
+@origin = http://127.0.0.1:5173
+@cookie = operaon_session=SUBSTITUIR_LOCALMENTE
+@lead = SUBSTITUIR_ID
+@appointment = SUBSTITUIR_ID
+
+### Criar compromisso ligado ao lead (RN-13), sem depender do Google (RN-11)
+POST {{base}}/appointments
+Origin: {{origin}}
+Cookie: {{cookie}}
+Content-Type: application/json
+
+{"lead_id":"{{lead}}","titulo":"Conversa fictícia","start_time":"2030-10-18T15:00:00Z","end_time":"2030-10-18T16:00:00Z"}
+
+### Estado de sync e lembretes; ERROR após 24h de falha, reautorização fica PENDING
+GET {{base}}/appointments
+Cookie: {{cookie}}
+
+### Retry manual inicia nova janela e invalida jobs da geração anterior (D11)
+POST {{base}}/appointments/{{appointment}}/retry
+Origin: {{origin}}
+Cookie: {{cookie}}
+
+### Perda cancela compromissos futuros (D25/RN-16)
+PATCH {{base}}/leads/{{lead}}
+Origin: {{origin}}
+Cookie: {{cookie}}
+Content-Type: application/json
+
+{"etapa":"PERDIDO","motivo_perda":"TIMING"}

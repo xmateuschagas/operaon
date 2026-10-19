@@ -8,7 +8,7 @@ umask 077
 : "${PGPASSFILE:?Monte o arquivo de autenticação}"
 : "${BACKUP_DIR:?Defina diretório privado de backup}"
 mkdir -p "$BACKUP_DIR"
-file="$BACKUP_DIR/operaon-$(date -u +%Y%m%dT%H%M%SZ).dump"
+file="${BACKUP_FILE:-$BACKUP_DIR/operaon-$(date -u +%Y%m%dT%H%M%SZ).dump}"
 pg_dump --format=custom --no-owner --file="$file"
 pg_restore --list "$file" >/dev/null
 printf '%s\n' 'Backup concluído e catálogo verificado'

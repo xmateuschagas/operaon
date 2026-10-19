@@ -2,7 +2,7 @@ import type { FastifyInstance,FastifyRequest } from 'fastify';
 import type { Pool,PoolClient } from 'pg';
 import { z } from 'zod';
 import { uuidSchema } from '@operaon/shared';
-import { enqueueJob } from '@operaon/shared/jobs';
+import { requestGoogleSync } from '@operaon/shared/jobs';
 import { planReminders } from '@operaon/shared/reminders';
 import { DomainError } from '@operaon/shared/errors';
 import { secured,type CrmDependencies } from './crm-routes.js';
@@ -27,7 +27,7 @@ export function registerAgenda(app:FastifyInstance,pool:Pool,deps:CrmDependencie
   route('POST','/appointments',async(db,actor,request)=>{
     const body=appointmentCreate.parse(request.body);const lead=await findLead(db,actor,body.lead_id,true);if(lead.etapa==='PERDIDO')throw new DomainError('INVALID_STATE',409,'Lead perdido não recebe novos compromissos');
     const row=(await db.query<AppointmentRow>('INSERT INTO appointments(tenant_id,user_id,lead_id,titulo,descricao,local,start_time,end_time) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',[actor.active_tenant_id,actor.user_id,body.lead_id,body.titulo,body.descricao,body.local,body.start_time,body.end_time])).rows[0]!;
-    await planReminders(db,actor.active_tenant_id!,row.id,deps.now?.()??new Date());await enqueueJob(db,actor.active_tenant_id!,'sync_google',{appointmentId:row.id});await audit(db,actor,'appointments',row.id,'CREATE');return row;
+    await planReminders(db,actor.active_tenant_id!,row.id,deps.now?.()??new Date());await requestGoogleSync(db,actor.active_tenant_id!,row.id);await audit(db,actor,'appointments',row.id,'CREATE');return row;
   });
   route('PATCH','/appointments/:id',async(db,actor,request)=>{
     const id=idFrom(request);const body=appointmentUpdate.parse(request.body);const previous=await findAppointment(db,actor,id);
@@ -36,11 +36,11 @@ export function registerAgenda(app:FastifyInstance,pool:Pool,deps:CrmDependencie
     const entries=Object.entries(body).filter(([,value])=>value!==undefined);if(!entries.length)return previous;
     const row=(await db.query<AppointmentRow>(`UPDATE appointments SET ${entries.map(([key],index)=>`${key}=$${index+2}`).join(',')},sync_status='PENDING' WHERE id=$1 RETURNING *`,[id,...entries.map(([,value])=>value)])).rows[0]!;
     if(row.status==='CANCELLED')await db.query("UPDATE appointment_reminders SET status='CANCELLED' WHERE appointment_id=$1 AND status<>'SENT'",[id]);
-    await planReminders(db,actor.active_tenant_id!,id,deps.now?.()??new Date());await enqueueJob(db,actor.active_tenant_id!,'sync_google',{appointmentId:id});await audit(db,actor,'appointments',id,'UPDATE');return row;
+    await planReminders(db,actor.active_tenant_id!,id,deps.now?.()??new Date());await requestGoogleSync(db,actor.active_tenant_id!,id);await audit(db,actor,'appointments',id,'UPDATE');return row;
   });
   route('DELETE','/appointments/:id',async(db,actor,request)=>{
     const id=idFrom(request);await findAppointment(db,actor,id);await db.query("UPDATE appointments SET status='CANCELLED',deleted_at=$2,sync_status='PENDING' WHERE id=$1",[id,deps.now?.()??new Date()]);
-    await planReminders(db,actor.active_tenant_id!,id,deps.now?.()??new Date());await enqueueJob(db,actor.active_tenant_id!,'sync_google',{appointmentId:id});await audit(db,actor,'appointments',id,'DELETE');return {ok:true};
+    await planReminders(db,actor.active_tenant_id!,id,deps.now?.()??new Date());await requestGoogleSync(db,actor.active_tenant_id!,id);await audit(db,actor,'appointments',id,'DELETE');return {ok:true};
   });
-  route('POST','/appointments/:id/retry',async(db,actor,request)=>{const id=idFrom(request);await findAppointment(db,actor,id);await enqueueJob(db,actor.active_tenant_id!,'sync_google',{appointmentId:id});return {ok:true};});
+  route('POST','/appointments/:id/retry',async(db,actor,request)=>{const id=idFrom(request);await findAppointment(db,actor,id);await requestGoogleSync(db,actor.active_tenant_id!,id);return {ok:true};});
 }
