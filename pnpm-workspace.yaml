@@ -1,0 +1,4 @@
+# Os serviços compartilham contratos TypeScript no pacote shared.
+packages:
+  - apps/*
+  - packages/*

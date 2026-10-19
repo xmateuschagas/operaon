@@ -1,0 +1,46 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [dev]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: operaon_test
+          POSTGRES_PASSWORD: ephemeral_ci_only
+        ports: ['5432:5432']
+        options: --health-cmd "pg_isready -U postgres" --health-interval 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://postgres:ephemeral_ci_only@127.0.0.1:5432/operaon_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+      - name: Validar PgBouncer transaction e RLS
+        run: |
+          docker build -f deploy/pgbouncer/Dockerfile -t operaon-pgbouncer:test .
+          pnpm test:pool
+      - name: Validar imagens e stack sem deploy
+        run: |
+          docker build -f apps/api/Dockerfile -t operaon-api:ci .
+          docker build -f apps/worker/Dockerfile -t operaon-worker:ci .
+          docker build -f apps/web/Dockerfile -t operaon-web:ci .
+          docker stack config -c deploy/stack.yml > /dev/null
+      - name: Validar backup criptografado sem acesso externo
+        run: |
+          docker build -f deploy/backup.Dockerfile -t operaon-backup:ci .
+          docker run --rm --entrypoint sh -v "$PWD/deploy:/tests:ro" operaon-backup:ci /tests/test-backup.sh

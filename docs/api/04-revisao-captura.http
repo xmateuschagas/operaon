@@ -1,0 +1,33 @@
+@base = http://127.0.0.1:3000
+@origin = http://127.0.0.1:5173
+@cookie = operaon_session=SUBSTITUIR_LOCALMENTE
+@integration = SUBSTITUIR_ID
+@token = SUBSTITUIR_LOCALMENTE
+
+### Revisão de inatividade (RN-03)
+GET {{base}}/review
+Cookie: {{cookie}}
+
+### Prévia sem gravação, opt-in explícito e duplicados (D5/D6/D18)
+POST {{base}}/imports/preview
+Origin: {{origin}}
+Cookie: {{cookie}}
+Content-Type: application/json
+
+{"csv":"nome,telefone,opt_in\nPessoa fictícia,5521999999999,sim\nDuplicado,5521999999999,false"}
+
+### Importação revalida a prévia
+POST {{base}}/imports
+Origin: {{origin}}
+Cookie: {{cookie}}
+Content-Type: application/json
+
+{"csv":"nome,telefone,opt_in\nPessoa fictícia,5521999999999,sim"}
+
+### Formulário: primeira criação 201; repetir telefone com outro X-Event-Id retorna 200/id (D17)
+POST {{base}}/webhooks/leads/{{integration}}
+Authorization: Bearer {{token}}
+X-Event-Id: formulario-ficticio-001
+Content-Type: application/json
+
+{"nome":"Formulário fictício","telefone_e164":"5521888888888","whatsapp_opt_in":false}
